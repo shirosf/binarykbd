@@ -1,15 +1,23 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+import argparse
 from PIL import Image, ImageDraw, ImageFont
 import sys
 import time
 import subprocess
 import logging
-from random import randint, seed
+import random
+import select
 
 FONTFILE="/usr/share/fonts/opentype/freefont/FreeSans.otf"
 
 logging.basicConfig(level=logging.INFO)
 logger=logging.getLogger('bkbpractice')
+
+def getchar():
+    if select.select([sys.stdin], [], [], 0) != ([sys.stdin], [], []):
+        return ''
+    return sys.stdin.read(1)
 
 class CodeTable(object):
     def readconf(self, conffile: str="config.org") -> int:
@@ -45,6 +53,7 @@ class CodeTable(object):
 
     def key2code(self, kchr:str) -> int:
         for i, keydef in enumerate(self.keytable):
+            if keydef==None: continue
             if keydef['key'] == kchr:
                 return i
         return 0
@@ -96,32 +105,70 @@ class FingersImage(object):
         self.showfile=None
 
 class PracticeOneKey(object):
-    def __init__(self, pstr: str):
+    def __init__(self, codetable: CodeTable, fimage: FingersImage, pstr: str=""):
         super().__init__()
-        self.pstr=pstr
+        self.codetable=codetable
+        self.fimage=fimage
+        self.setpstr(pstr)
+
+    def setpstr(self, pstr: str) -> None:
+        if len(pstr)>=3 and pstr[1]=='.' and pstr[2]=='.':
+            self.pstr=""
+            for i in range(ord(pstr[0]), ord(pstr[3])+1):
+                self.pstr+=chr(i)
+            if len(pstr)>=5:
+                self.pstr+=pstr[4:]
+        else:
+            self.pstr=pstr
 
     def nextchar(self) -> str:
         plen=len(self.pstr)
         while True:
-            i=randint(0, plen-1)
+            i=random.randint(0, plen-1)
             yield self.pstr[i]
 
+    def play(self, trytimes:int=0, gap:float=0.5, interval:float=3.0) -> None:
+        count=0
+        for k in self.nextchar():
+            kt=self.codetable.chr2code(k)
+            self.fimage.createimg(0, k)
+            time.sleep(gap)
+            if kt[0]==0:
+                self.fimage.createimg(kt[1], k)
+            else:
+                self.fimage.createimg(kt[0], "")
+                time.sleep(gap)
+                self.fimage.createimg(kt[1], "")
+            time.sleep(interval)
+            count+=1
+            if trytimes==count: break
+            if getchar()!='': break
+
+def parse_args():
+    pname=sys.argv[0]
+    i=pname.rfind('/')
+    if i>=0: pname=pname[i+1:]
+    opt_parser=argparse.ArgumentParser(prog=pname,
+                                       description="binary5 keyboard practice")
+    opt_parser.add_argument("-s", "--string", nargs='?', default="a..z",
+                            help="charcters set to proctice, " \
+                            "the first 4 charcters can be like a..e to set 'abcde'")
+    opt_parser.add_argument("-g", "--gap", nargs='?', default=0.5, type=float,
+                            help="gap time showing 2 sequential graphics")
+    opt_parser.add_argument("-i", "--interval", nargs='?', default=2.0, type=float,
+                            help="interval time of 1 prctice character")
+    opt_parser.add_argument("-t", "--times", nargs='?', default=0, type=int,
+                            help="times of repeating practice")
+    return opt_parser.parse_args()
+
 if __name__ == "__main__":
-    seed()
+    random.seed()
+    options=parse_args()
     codetable=CodeTable()
     codetable.readconf()
     fimage=FingersImage()
     fimage.createimg(0, "")
     fimage.showimg()
-    pkey=PracticeOneKey('aeiou')
-    for k in pkey.nextchar():
-        kt=codetable.chr2code(k)
-        if kt[0]==0:
-            fimage.createimg(kt[1], k)
-        else:
-            fimage.createimg(kt[0], "")
-            time.sleep(0.5)
-            fimage.createimg(kt[1], "")
-        a=input("hit 'Retrun' for Next, 'q' to quite ")
-        if a and a[0]=='q':break
+    pkey=PracticeOneKey(codetable, fimage, pstr=options.string)
+    pkey.play(options.times, gap=options.gap, interval=options.interval)
     fimage.close()
