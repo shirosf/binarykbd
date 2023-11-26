@@ -1,0 +1,34 @@
+--- pyftdi/i2c.py.orig	2023-11-23 18:38:56.193090107 +0900
++++ pyftdi/i2c.py	2023-11-26 08:49:24.506313286 +0900
+@@ -23,6 +23,7 @@
+ from usb.core import Device as UsbDevice
+ from .ftdi import Ftdi, FtdiFeatureError
+ from .misc import to_bool
++import time
+ 
+ 
+ class I2cIOError(IOError):
+@@ -1052,17 +1053,19 @@
+             cmd.extend(self._clk_lo_data_hi)
+         else:
+             # SCL low, SDA high-Z
+-            cmd.extend(self._clk_lo_data_hi)
+-            # read SDA (ack from slave)
+-            cmd.extend(self._read_bit)
++            cmd.extend((0x80, 0x03, 0x03)) # SCL HiZ
++            cmd.extend((0x88,0x81)) # wait GPIOL1(D5)=high, then read D port
+         cmd.extend(self._immediate)
+         self._ftdi.write_data(cmd)
++
+         ack = self._ftdi.read_data_bytes(1, 4)
+         if not ack:
+             raise I2cIOError('No answer from FTDI')
+-        if ack[0] & self.BIT0:
++        if ack[0] & 0x2:
+             raise I2cNackError('NACK from slave')
+ 
++        self._ftdi.write_data(self._clk_lo_data_hi) # SCL low
++
+     def _do_read(self, readlen: int) -> bytes:
+         self.log.debug('- read %d byte(s)', readlen)
+         if not readlen:
