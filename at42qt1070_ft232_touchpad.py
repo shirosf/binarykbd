@@ -26,6 +26,8 @@ logger.setLevel(logging.INFO)
 class AT42QT1070_FT232:
     I2C_ADDRESS=0x1B
     AT42QT1070_CHIPID=0x2E
+    ZERO_NONZERO_THRESHOLD=40
+    ZERO_NONZERO_HYSTERISIS=20
     def probe_device(self) -> bool:
         self.i2cdev = i2c_device.I2CDevice(board.I2C(), self.I2C_ADDRESS, probe=False)
         result = bytearray(1)
@@ -33,13 +35,45 @@ class AT42QT1070_FT232:
         if result[0]!=self.AT42QT1070_CHIPID:
             logger.error("can't find AT42QT1070")
             return False
+
+        if not self.calibrate(): return False
         # remove low power mode, and set the shortest 8 msec interval
         self.i2cdev.write(bytes([54, 0]))
         self.i2cdev.write_then_readinto(bytes([54]), result)
         if result[0]!=0:
             logger.error("can't write to AT42QT1070")
             return False
+        self.i2cdev.write(bytes([53, 0xf])) # no GUARD CHANNEL
+        for i in range(5):
+            self.i2cdev.write(bytes([39+i, (16<<2)|0])) # AVE=8, ADK=0 for all keys
+            self.i2cdev.write(bytes([32+i, 100])) # Negative Threashold 30
+        self.i2cdev.write(bytes([39+5, 0])) # disable key5
+        self.i2cdev.write(bytes([39+6, 0])) # disable key6
+
         logger.info("found AT42QT1070, initialization okay")
+        self.scan_ts=time.time_ns()
+        self.last_keys=0
+        self.zero_ts=0
+        self.nonzero_ts=0
+        self.nonzero_keys=0
+        self.keys_maxbitn=0
+        self.keys_maxbits=0
+        self.state_zero=True
+        return True
+
+    def calibrate(self) -> bool:
+        result = bytearray(1)
+        self.i2cdev.write(bytes([57, 1])) # start calibration
+        for i in range(10):
+            try:
+                self.i2cdev.write_then_readinto(bytes([2]), result)
+                if (result[0]&0x80)==0: break
+            except:
+                logger.info("no response after calibrate, wait more time")
+            time.sleep(10e-3)
+        else:
+            logger.error("can't calibrate")
+            return False
         return True
 
     def key_status(self) -> int:
@@ -62,14 +96,59 @@ class AT42QT1070_FT232:
         ref=(msb<<8)|lsb
         return (signal, ref)
 
+    def update_maxbits(self) -> bool:
+        n=0
+        for i in range(5):
+            if self.last_keys & (1<<i): n+=1
+        if n>self.keys_maxbitn:
+            self.keys_maxbitn=n
+            self.keys_maxbits=self.last_keys
+            return True
+        return False
+
+    def update_state_zero(self, dts: int) -> bool:
+        if self.last_keys==0:
+            self.zero_ts+=dts
+            self.nonzero_ts=0
+        else:
+            self.zero_ts=0
+            self.nonzero_ts+=dts
+        if not self.state_zero:
+           if self.zero_ts > (self.ZERO_NONZERO_THRESHOLD+self.ZERO_NONZERO_HYSTERISIS):
+               self.state_zero=True
+               return True
+        else:
+           if self.nonzero_ts > (self.ZERO_NONZERO_THRESHOLD+self.ZERO_NONZERO_HYSTERISIS):
+               self.state_zero=False
+               return True
+        return False
+
+    def scan_key(self) -> bool:
+        ts=time.time_ns()
+        # dts is around 16-18 msec
+        dts=ts-self.scan_ts
+        self.scan_ts=ts
+        keys=tdev.key_status()
+        if keys!=self.last_keys:
+            #print("{0:b}".format(keys))
+            self.last_keys=keys
+        uz=self.update_state_zero(dts)
+        if not self.state_zero:
+            self.update_maxbits()
+        if uz and self.state_zero:
+            # get a new key code
+            self.keys_maxbitn=0
+            return True
+        return False
+
 if __name__ == "__main__":
     tdev=AT42QT1070_FT232()
     if not tdev.probe_device(): sys.exit(1)
     keys=0
+    nkeys=0
     while True:
-        for i in range(5):
-            data=tdev.key_signal_ref(i)
-            print(data)
-        print("----- key status=%s" %  "{0:b}".format(tdev.key_status()))
-        time.sleep(0.5)
-        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []): sys.exit(0)
+        if tdev.scan_key():
+            print("{0:b}".format(tdev.keys_maxbits))
+        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []): break
+
+    sys.exit(0)
