@@ -22,6 +22,7 @@ from adafruit_bus_device import i2c_device
 logging.basicConfig(level=logging.INFO)
 logger=logging.getLogger('at42qt1070_ft232_touchpad')
 logger.setLevel(logging.INFO)
+logging.getLogger('pyftdi.i2c').setLevel(logging.ERROR)
 
 class AT42QT1070_FT232:
     I2C_ADDRESS=0x1B
@@ -128,7 +129,7 @@ class AT42QT1070_FT232:
         # dts is around 16-18 msec
         dts=ts-self.scan_ts
         self.scan_ts=ts
-        keys=tdev.key_status()
+        keys=self.key_status()
         if keys!=self.last_keys:
             #print("{0:b}".format(keys))
             self.last_keys=keys

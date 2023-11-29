@@ -8,16 +8,20 @@ import subprocess
 import logging
 import random
 import select
+import termios
+from at42qt1070_ft232_touchpad import AT42QT1070_FT232
 
 FONTFILE="/usr/share/fonts/opentype/freefont/FreeSans.otf"
 
 logging.basicConfig(level=logging.INFO)
 logger=logging.getLogger('bkbpractice')
 
-def getchar():
-    if select.select([sys.stdin], [], [], 0) != ([sys.stdin], [], []):
-        return ''
-    return sys.stdin.read(1)
+def check_keyin():
+    dp=select.poll()
+    dp.register(sys.stdin, select.POLLIN)
+    pres=dp.poll(0.0)
+    if not pres: return False
+    return True
 
 class CodeTable(object):
     def readconf(self, conffile: str="config.org") -> int:
@@ -67,6 +71,11 @@ class CodeTable(object):
                     return (self.key2code(j), i)
         return (0, 0)
 
+    def code2char(self, dcode: int) -> str:
+        if dcode>=32: return ''
+        keydef=self.keytable[dcode]
+        return keydef['key']
+
 class FingersImage(object):
     def __init__(self):
         super().__init__()
@@ -83,7 +92,7 @@ class FingersImage(object):
             self.showproc.wait()
             self.showproc=None
 
-    def createimg(self, code: int, text: str) -> None:
+    def createimg(self, code: int, text: str, red: bool=None) -> None:
         image = Image.open("fingersb.png")
         imgs = []
         k=1
@@ -95,7 +104,10 @@ class FingersImage(object):
             image.paste(img, (0,0), mask = img)
             img.close()
         d=ImageDraw.Draw(image)
-        d.text((180,360), text, font=self.font)
+        if red:
+            d.text((180,360), text, font=self.font, fill=(255,0,0,255))
+        else:
+            d.text((180,360), text, font=self.font)
         self.showfile="showfile.png"
         image.save(self.showfile)
         image.close()
@@ -105,11 +117,14 @@ class FingersImage(object):
         self.showfile=None
 
 class PracticeOneKey(object):
-    def __init__(self, codetable: CodeTable, fimage: FingersImage, pstr: str=""):
+    def __init__(self, codetable: CodeTable, fimage: FingersImage=None, pstr: str=""):
         super().__init__()
         self.codetable=codetable
         self.fimage=fimage
         self.setpstr(pstr)
+        self.tdev=AT42QT1070_FT232()
+        if not self.tdev.probe_device():
+            self.tdev=None
 
     def setpstr(self, pstr: str) -> None:
         if len(pstr)>=3 and pstr[1]=='.' and pstr[2]=='.':
@@ -132,6 +147,11 @@ class PracticeOneKey(object):
         for k in self.nextchar():
             kt=self.codetable.chr2code(k)
             self.fimage.createimg(0, k)
+            if self.tdev:
+                while not self.tdev.scan_key(): pass
+                ik=self.codetable.code2char(self.tdev.keys_maxbits)
+                if ik==k: continue
+                self.fimage.createimg(0, ik, red=True)
             time.sleep(gap)
             if kt[0]==0:
                 self.fimage.createimg(kt[1], k)
@@ -142,7 +162,34 @@ class PracticeOneKey(object):
             time.sleep(interval)
             count+=1
             if trytimes==count: break
-            if getchar()!='': break
+            if check_keyin(): break
+
+    def tplay(self, trytimes:int=0) -> None:
+        ccode={'red':'\033[91m', 'green':'\033[92m', 'yellow':'\033[93m',
+                'blue':'\033[94m', 'purple':'\033[95m', 'cyan':'\033[96m',
+                'gray':'\033[97m', 'black':'\033[98m',
+                'end':'\033[0m', 'bold':'\033[1m', 'underline':'\033[4m'}
+        wordlen=4
+        count=0
+        while True:
+            word=''
+            for k in self.nextchar():
+                word+=k
+                if len(word)==wordlen: break
+            print(word)
+            for i in range(wordlen):
+                while not self.tdev.scan_key(): pass
+                ik=self.codetable.code2char(self.tdev.keys_maxbits)
+                if ik!=word[i]:
+                    print(("%s{}%s" % (ccode['red'], ccode['end'])) .format(ik), end='')
+                else:
+                    print(ik, end='')
+                sys.stdout.flush()
+                if check_keyin(): return
+            print()
+            print("----------")
+            count+=1
+            if trytimes==count: break
 
 def parse_args():
     pname=sys.argv[0]
@@ -159,16 +206,44 @@ def parse_args():
                             help="interval time of 1 prctice character")
     opt_parser.add_argument("-t", "--times", nargs='?', default=0, type=int,
                             help="times of repeating practice")
+    opt_parser.add_argument("-m", "--mode", nargs='?', default=0, type=int,
+                            help="practice mode, 0:graphics(default), 1:text")
     return opt_parser.parse_args()
+
+class ConsoleKeyIn():
+    def __init__(self, keyin):
+        self.keyin=keyin
+        if not keyin: return
+        fd=sys.stdin.fileno()
+        self.sattr=termios.tcgetattr(fd)
+        nattr=termios.tcgetattr(fd)
+        nattr[3] &= ~termios.ICANON
+        #nattr[3] &= ~termios.ECHO
+        nattr[6][termios.VMIN]=1
+        nattr[6][termios.VTIME]=0
+        termios.tcsetattr(fd, termios.TCSANOW, nattr)
+
+    def close(self):
+        if not self.keyin: return
+        fd=sys.stdin.fileno()
+        termios.tcsetattr(fd, termios.TCSANOW, self.sattr)
 
 if __name__ == "__main__":
     random.seed()
     options=parse_args()
     codetable=CodeTable()
     codetable.readconf()
-    fimage=FingersImage()
-    fimage.createimg(0, "")
-    fimage.showimg()
-    pkey=PracticeOneKey(codetable, fimage, pstr=options.string)
-    pkey.play(options.times, gap=options.gap, interval=options.interval)
-    fimage.close()
+    ckeyin=ConsoleKeyIn(True)
+    if options.mode==0:
+        fimage=FingersImage()
+        fimage.createimg(0, "")
+        fimage.showimg()
+        pkey=PracticeOneKey(codetable, fimage, pstr=options.string)
+        pkey.play(options.times, gap=options.gap, interval=options.interval)
+        fimage.close()
+    else:
+        pkey=PracticeOneKey(codetable, pstr=options.string)
+        pkey.tplay()
+
+    ckeyin.close()
+    sys.exit(0)
