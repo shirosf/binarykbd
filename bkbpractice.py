@@ -54,6 +54,7 @@ class CodeTable(object):
                 keydef[j]=items[4+i].strip()
             self.keytable[dcode]=keydef
         inf.close()
+        self.modifier: List[chr, int] = ['',0]
 
     def key2code(self, kchr:str) -> int:
         for i, keydef in enumerate(self.keytable):
@@ -71,10 +72,36 @@ class CodeTable(object):
                     return (self.key2code(j), i)
         return (0, 0)
 
-    def code2char(self, dcode: int) -> str:
+    def code2char(self, dcode: int, pmod: bool=True) -> str:
         if dcode>=32: return ''
         keydef=self.keytable[dcode]
-        return keydef['key']
+        ik=keydef['key']
+        if not pmod: return ik
+        if ik not in ('M1','M2','M3','M4','M5'):
+            if self.modifier[1]==0: return ik
+            ik=keydef[self.modifier[0]]
+            if self.modifier[1]==1: self.modifier[1]=0
+            return ik
+        # got a modifier key
+        if self.modifier[1]==0:
+            self.modifier[0]=ik
+            self.modifier[1]=1
+            return ''
+        if self.modifier[1]==1:
+            if self.modifier[0]==ik:
+                # same modifier key twice, lock it
+                self.modifier[1]=2
+                return ''
+            self.modifier[0]=ik
+            return ''
+        if self.modifier[1]==2:
+            if self.modifier[0]==ik:
+                # release locked modifier
+                self.modifier[1]=0
+            self.modifier[1]=ik
+            self.modifier[1]=1
+            return ''
+        return ''
 
 class FingersImage(object):
     def __init__(self):
@@ -143,14 +170,15 @@ class PracticeOneKey(object):
             yield self.pstr[i]
 
     def play(self, trytimes:int=0, gap:float=0.5, interval:float=3.0) -> None:
-        count=0
+        count: int = 0
+        self.modifier: tuple[str, int] = ('', 0)
         for k in self.nextchar():
             kt=self.codetable.chr2code(k)
             self.fimage.createimg(0, k)
             if self.tdev:
                 while not self.tdev.scan_key(): pass
                 ik=self.codetable.code2char(self.tdev.keys_maxbits)
-                if ik==k: continue
+                if ik=='' or ik==k: continue
                 self.fimage.createimg(0, ik, red=True)
             time.sleep(gap)
             if kt[0]==0:
@@ -177,14 +205,17 @@ class PracticeOneKey(object):
                 word+=k
                 if len(word)==wordlen: break
             print(word)
-            for i in range(wordlen):
+            wc=0
+            while wc<wordlen:
                 while not self.tdev.scan_key(): pass
                 ik=self.codetable.code2char(self.tdev.keys_maxbits)
-                if ik!=word[i]:
-                    print(("%s{}%s" % (ccode['red'], ccode['end'])) .format(ik), end='')
-                else:
-                    print(ik, end='')
-                sys.stdout.flush()
+                if ik:
+                    if ik!=word[wc]:
+                        print(("%s{}%s" % (ccode['red'], ccode['end'])) .format(ik), end='')
+                    else:
+                        print(ik, end='')
+                    sys.stdout.flush()
+                    wc+=1
                 if check_keyin(): return
             print()
             print("----------")
