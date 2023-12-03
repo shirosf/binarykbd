@@ -31,8 +31,10 @@ Use adafruit FT232H(i2c) board + AT42QT1070(touch sensor) board
 
 AT42QT1070 board needs a little modification to use i2c mode.
 #+CAPTION: surface side of the board
-[[./photos/ft232h_at42qt1070.jpg]
+#+ATTR_HTML: :width 300px
+[[./photos/ft232h_at42qt1070.jpg]]
 #+CAPTION: back side of the board
+#+ATTR_HTML: :width 300px
 [[./photos/ft232h_at42qt1070_wiring.jpg]]
 
 At first create the touch pad as the next pictures,
