@@ -24,6 +24,8 @@ def check_keyin():
     return True
 
 class CodeTable(object):
+    SPECIAL_KEYS = {'BS':'\b', 'SP':' ', 'VBAR':'|', 'TAB':'\t', 'ESC':'\x1B', 'RET':'\n',
+                    'UP':'\x1B[A', 'DOWN':'\x1B[B', 'RIGHT':'\x1B[C', 'LEFT':'\x1B[D'}
     def readconf(self, conffile: str="config.org") -> int:
         inf=open(conffile, "r")
         started=False
@@ -80,6 +82,7 @@ class CodeTable(object):
         if ik not in ('M1','M2','M3','M4','M5'):
             if self.modifier[1]==0: return ik
             ik=keydef[self.modifier[0]]
+            if ik in self.SPECIAL_KEYS: ik=self.SPECIAL_KEYS[ik]
             if self.modifier[1]==1: self.modifier[1]=0
             return ik
         # got a modifier key
@@ -176,9 +179,12 @@ class PracticeOneKey(object):
             kt=self.codetable.chr2code(k)
             self.fimage.createimg(0, k)
             if self.tdev:
-                while not self.tdev.scan_key(): pass
-                ik=self.codetable.code2char(self.tdev.keys_maxbits)
-                if ik=='' or ik==k: continue
+                while True:
+                    while not self.tdev.scan_key(): pass
+                    ik=self.codetable.code2char(self.tdev.keys_maxbits)
+                    if check_keyin(): return
+                    if ik!='': break
+                if ik==k: continue
                 self.fimage.createimg(0, ik, red=True)
             time.sleep(gap)
             if kt[0]==0:
@@ -190,7 +196,7 @@ class PracticeOneKey(object):
             time.sleep(interval)
             count+=1
             if trytimes==count: break
-            if check_keyin(): break
+            if check_keyin(): return
 
     def tplay(self, trytimes:int=0) -> None:
         ccode={'red':'\033[91m', 'green':'\033[92m', 'yellow':'\033[93m',
