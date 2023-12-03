@@ -1,0 +1,47 @@
+* Binary5 keyboard
+** objective
+Developing 5-bit binary input keyboard, which works only by a left hand for text input.
+
+** proof of concept
++ create a key code table for 5-bit input
++ develop a prototype model
++ develop a simple training software
++ train myself
++ check if I can reach practically usable speed to input text
++ If no, the project ends.  If yes, continue to create a model for my daily use.
+
+** pre-release history
+*** 2023-12
+It was difficult to input come codes which needs to lift the third finger.
+So, made the third finger pad a little down as the next,
+[[./photos/fingers_on_board2.jpg]]
+
+*** 2023-11
+Create a key code table
++ 5 bits can make 32 codes.
++ 00000 is delimiter.
++ 00001,00010,00100,01000,10000 are modifier.
++ 26 codes are left, and it is just enough for 26 alphabet characters.
++ Do a little research about the frequency of the letters.
+
+Develop a prototype model
+5-bit touch key input.
+
+Use adafruit FT232H(i2c) board + AT42QT1070(touch sensor) board
+
+AT42QT1070 board needs a little modification to use i2c mode.
+#+CAPTION: surface side of the board
+[[./photos/ft232h_at42qt1070.jpg]
+#+CAPTION: back side of the board
+[[./photos/ft232h_at42qt1070_wiring.jpg]]
+
+At first create the touch pad as the next pictures,
+[[./photos/touchkey1_surface.jpg]]
+[[./photos/touchkey1_back.jpg]]
+
+It suffered a lot with cross talk noise.
+So, modified as the next,
+[[./photos/touchkey2_back.jpg]]
+
+Started my training,
+[[./photos/fingers_on_board1.jpg]]
