@@ -157,15 +157,15 @@ static int send_event(int fd, uint8_t mod, uint8_t scancode)
 {
 	struct uhid_event ev;
 	memset(&ev, 0, sizeof(ev));
-	ev.type = UHID_INPUT;
-	ev.u.input.size = 8;
+	ev.type = UHID_INPUT2;
+	ev.u.input2.size = 8;
         //data[0]: b7..b0
 	//  RightGUI,RightAlt,RightShift,RightCtl,LeftGui,LeftAlt,LeftShift,LeftCtr
-	ev.u.input.data[0] = mod;
-	ev.u.input.data[2] = scancode;
+	ev.u.input2.data[0] = mod;
+	ev.u.input2.data[2] = scancode;
 	if(uhid_write(fd, &ev)){return -1;}
-	ev.u.input.data[0] = 0;
-	ev.u.input.data[2] = 0;
+	ev.u.input2.data[0] = 0;
+	ev.u.input2.data[2] = 0;
 	return uhid_write(fd, &ev);
 }
 
@@ -247,7 +247,7 @@ static int keyboard(int fd)
 	for (i = 0; i < ret; ++i) {
 		switch (buf[i]) {
 		case ' ':
-			ret = send_event(fd, 0, scancode('A'));
+			ret = send_event(fd, 0x2, scancode('A'));
 			if (ret) return ret;
 			break;
 		case 'q':

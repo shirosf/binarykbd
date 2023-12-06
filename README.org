@@ -12,7 +12,7 @@ Developing 5-bit binary input keyboard, which works only by a left hand for text
 
 ** pre-release history
 *** 2023-12
-It was difficult to input come codes which needs to lift the third finger.
+It was difficult to input some codes which needs to lift the third finger.
 So, made the third finger pad a little down as the next,
 [[./photos/fingers_on_board2.jpg]]
 

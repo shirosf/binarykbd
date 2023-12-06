@@ -13,9 +13,11 @@ to detect the delayed signal.
 For that, 'D5 <-> SCL' connection is needed.
 '''
 import sys
+import os
 import time
 import select
 import logging
+os.environ["BLINKA_FT232H"]="1"
 import board
 from adafruit_bus_device import i2c_device
 

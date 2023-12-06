@@ -13,8 +13,8 @@ from at42qt1070_ft232_touchpad import AT42QT1070_FT232
 
 FONTFILE="/usr/share/fonts/opentype/freefont/FreeSans.otf"
 
-logging.basicConfig(level=logging.INFO)
 logger=logging.getLogger('bkbpractice')
+logger.setLevel(logging.INFO)
 
 def check_keyin():
     dp=select.poll()
@@ -26,6 +26,7 @@ def check_keyin():
 class CodeTable(object):
     SPECIAL_KEYS = {'BS':'\b', 'SP':' ', 'VBAR':'|', 'TAB':'\t', 'ESC':'\x1B', 'RET':'\n',
                     'UP':'\x1B[A', 'DOWN':'\x1B[B', 'RIGHT':'\x1B[C', 'LEFT':'\x1B[D'}
+    MODLOCK_TIMEOUT = 500000000
     def readconf(self, conffile: str="config.org") -> int:
         inf=open(conffile, "r")
         started=False
@@ -56,7 +57,9 @@ class CodeTable(object):
                 keydef[j]=items[4+i].strip()
             self.keytable[dcode]=keydef
         inf.close()
-        self.modifier: List[chr, int] = ['',0]
+        self.modifiers = {'M1':0,'M2':0,'M3':0,'M4':0,'M5':0}
+        self.lastmod = ''
+        self.modts = 0
 
     def key2code(self, kchr:str) -> int:
         for i, keydef in enumerate(self.keytable):
@@ -74,37 +77,55 @@ class CodeTable(object):
                     return (self.key2code(j), i)
         return (0, 0)
 
-    def code2char(self, dcode: int, pmod: bool=True) -> str:
+    def code2char(self, dcode: int) -> tuple[str, str]:
         if dcode>=32: return ''
         keydef=self.keytable[dcode]
         ik=keydef['key']
-        if not pmod: return ik
-        if ik not in ('M1','M2','M3','M4','M5'):
-            if self.modifier[1]==0: return ik
-            ik=keydef[self.modifier[0]]
-            if ik in self.SPECIAL_KEYS: ik=self.SPECIAL_KEYS[ik]
-            if self.modifier[1]==1: self.modifier[1]=0
-            return ik
+        if ik not in self.modifiers:
+            if not self.lastmod:
+                return (ik,'') # regular key without modifier
+            mk=keydef[self.lastmod] # modified with the last modifier
+            if self.modifiers[self.lastmod]!=2:
+                # last modifier is not locked
+                for k,v in self.modifiers.items():
+                    if v!=2: self.modifiers[k]=0 # clear all unlocked modifiers
+                self.lastmod=''
+                return (ik, mk)
+            else:
+                # last modifier is locked
+                return (ik, mk)
         # got a modifier key
-        if self.modifier[1]==0:
-            self.modifier[0]=ik
-            self.modifier[1]=1
-            return ''
-        if self.modifier[1]==1:
-            if self.modifier[0]==ik:
-                # same modifier key twice, lock it
-                self.modifier[1]=2
-                return ''
-            self.modifier[0]=ik
-            return ''
-        if self.modifier[1]==2:
-            if self.modifier[0]==ik:
-                # release locked modifier
-                self.modifier[1]=0
-            self.modifier[1]=ik
-            self.modifier[1]=1
-            return ''
-        return ''
+        if ik==self.lastmod:
+            if self.modifiers[self.lastmod]==1:
+                ts=time.time_ns()
+                if ts-self.modts < self.MODLOCK_TIMEOUT:
+                    logger.debug("modifiere %s=2" % self.lastmod)
+                    self.modifiers[self.lastmod]=2 # only 2 sequencial mofiers make lock
+                else:
+                    logger.debug("modifiere(no lock by timeout) %s=1" % self.lastmod)
+                    self.modts=ts
+                    self.modifiers[self.lastmod]=1
+            else:
+                self.modifiers[self.lastmod]=0
+                logger.debug("modifiere %s=0" % self.lastmod)
+                self.lastmod=''
+        else:
+            if self.modifiers[ik]==2:
+                logger.debug("modifiere %s=0" % ik)
+                self.modifiers[ik]=0
+                self.lastmod=''
+            else:
+                logger.debug("modifiere %s=1" % ik)
+                self.modts=time.time_ns()
+                self.modifiers[ik]=1
+                self.lastmod=ik
+        return ('','')
+
+    def code2charWm(self, dcode: int) -> str:
+        key=self.code2char(dcode)
+        if key[1]: return key[1]
+        return key[0]
+
 
 class FingersImage(object):
     def __init__(self):
@@ -163,6 +184,12 @@ class PracticeOneKey(object):
                 self.pstr+=chr(i)
             if len(pstr)>=5:
                 self.pstr+=pstr[4:]
+        elif len(pstr)==0:
+            self.pstr=""
+            for i in range(ord('a'), ord('z')+1):
+                self.pstr+=chr(i)
+            self.pstr+=self.pstr.upper()
+            self.pstr+="0123456789 |@~&`%^,.()-{}<>[]_\"'+;=*\\:$/?"
         else:
             self.pstr=pstr
 
@@ -181,7 +208,7 @@ class PracticeOneKey(object):
             if self.tdev:
                 while True:
                     while not self.tdev.scan_key(): pass
-                    ik=self.codetable.code2char(self.tdev.keys_maxbits)
+                    ik=self.codetable.code2charWm(self.tdev.keys_maxbits)
                     if check_keyin(): return
                     if ik!='': break
                 if ik==k: continue
@@ -214,7 +241,7 @@ class PracticeOneKey(object):
             wc=0
             while wc<wordlen:
                 while not self.tdev.scan_key(): pass
-                ik=self.codetable.code2char(self.tdev.keys_maxbits)
+                ik=self.codetable.code2charWm(self.tdev.keys_maxbits)
                 if ik:
                     if ik!=word[wc]:
                         print(("%s{}%s" % (ccode['red'], ccode['end'])) .format(ik), end='')
@@ -234,7 +261,7 @@ def parse_args():
     if i>=0: pname=pname[i+1:]
     opt_parser=argparse.ArgumentParser(prog=pname,
                                        description="binary5 keyboard practice")
-    opt_parser.add_argument("-s", "--string", nargs='?', default="a..z",
+    opt_parser.add_argument("-s", "--string", nargs='?', default="",
                             help="charcters set to proctice, " \
                             "the first 4 charcters can be like a..e to set 'abcde'")
     opt_parser.add_argument("-g", "--gap", nargs='?', default=0.5, type=float,
