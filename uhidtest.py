@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import uhid
-from at42qt1070_ft232_touchpad import AT42QT1070_FT232
+import at42qt1070_ft232_touchpad
 from bkbpractice import CodeTable
 
 def scancode(rkey: str, mkey: str, mod: dict[str, int]) -> tuple[int, int]:
@@ -36,7 +36,7 @@ def scancode(rkey: str, mkey: str, mod: dict[str, int]) -> tuple[int, int]:
     return (scodes[mkey][0], mbits)
 
 async def inject_input(device: uhid.UHIDDevice) -> None:
-    tdev=AT42QT1070_FT232()
+    tdev=at42qt1070_ft232_touchpad.AT42QT1070_FT232()
     if not tdev.probe_device():
             raise Exception("No device is attached")
     codetable=CodeTable()
@@ -48,6 +48,7 @@ async def inject_input(device: uhid.UHIDDevice) -> None:
         uk=scancode(ik[0], ik[1], ik[2])
         device.send_input((uk[1],0,uk[0],0,0,0,0,0))
         device.send_input((0,0,0,0,0,0,0,0))
+        while device._uhid._writer_registered: await asyncio.sleep(0)
 
 async def main():
     device = uhid.UHIDDevice(
