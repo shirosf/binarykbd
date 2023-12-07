@@ -9,6 +9,7 @@ import logging
 import random
 import select
 import termios
+from copy import deepcopy
 from at42qt1070_ft232_touchpad import AT42QT1070_FT232
 
 FONTFILE="/usr/share/fonts/opentype/freefont/FreeSans.otf"
@@ -77,23 +78,24 @@ class CodeTable(object):
                     return (self.key2code(j), i)
         return (0, 0)
 
-    def code2char(self, dcode: int) -> tuple[str, str]:
-        if dcode>=32: return ''
+    def code2char(self, dcode: int) -> tuple[str, str, dict]:
+        if dcode>=32: return ('', '', None)
         keydef=self.keytable[dcode]
         ik=keydef['key']
         if ik not in self.modifiers:
+            rm=deepcopy(self.modifiers)
             if not self.lastmod:
-                return (ik,'') # regular key without modifier
+                return (ik,'', rm) # regular key without modifier
             mk=keydef[self.lastmod] # modified with the last modifier
             if self.modifiers[self.lastmod]!=2:
                 # last modifier is not locked
                 for k,v in self.modifiers.items():
                     if v!=2: self.modifiers[k]=0 # clear all unlocked modifiers
                 self.lastmod=''
-                return (ik, mk)
+                return (ik, mk, rm)
             else:
                 # last modifier is locked
-                return (ik, mk)
+                return (ik, mk, rm)
         # got a modifier key
         if ik==self.lastmod:
             if self.modifiers[self.lastmod]==1:
@@ -119,11 +121,14 @@ class CodeTable(object):
                 self.modts=time.time_ns()
                 self.modifiers[ik]=1
                 self.lastmod=ik
-        return ('','')
+        return ('','',None)
 
     def code2charWm(self, dcode: int) -> str:
         key=self.code2char(dcode)
-        if key[1]: return key[1]
+        if key[1]:
+            if key[1] in self.SPECIAL_KEYS:
+                return self.SPECIAL_KEYS[key[1]]
+            return key[1]
         return key[0]
 
 
