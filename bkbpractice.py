@@ -212,7 +212,7 @@ class PracticeOneKey(object):
             self.fimage.createimg(0, k)
             if self.tdev:
                 while True:
-                    while not self.tdev.scan_key(): pass
+                    while not self.tdev.scan_key()[0]: pass
                     ik=self.codetable.code2charWm(self.tdev.keys_maxbits)
                     if check_keyin(): return
                     if ik!='': break
@@ -245,7 +245,7 @@ class PracticeOneKey(object):
             print(word)
             wc=0
             while wc<wordlen:
-                while not self.tdev.scan_key(): pass
+                while not self.tdev.scan_key()[0]: pass
                 ik=self.codetable.code2charWm(self.tdev.keys_maxbits)
                 if ik:
                     if ik!=word[wc]:

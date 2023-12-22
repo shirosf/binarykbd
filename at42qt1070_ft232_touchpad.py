@@ -128,7 +128,7 @@ class AT42QT1070_FT232:
                return True
         return False
 
-    def scan_key(self) -> bool:
+    def scan_key(self) -> tuple[bool,bool]:
         ts=time.time_ns()
         # dts is around 16-18 msec
         dts=ts-self.scan_ts
@@ -145,12 +145,12 @@ class AT42QT1070_FT232:
             rt=self.nonzero_ts // self.KEY_REPEAT_TIME
             if rt>self.KEY_REPEAT_START:
                 if self.nonzero_ts-dts < rt*self.KEY_REPEAT_TIME:
-                    return True
+                    return (True,True)
         if uz and self.state_zero:
             # get a new key code
             self.keys_maxbitn=0
-            return True
-        return False
+            return (True,False)
+        return (False,False)
 
 if __name__ == "__main__":
     tdev=AT42QT1070_FT232()
@@ -158,7 +158,7 @@ if __name__ == "__main__":
     keys=0
     nkeys=0
     while True:
-        if tdev.scan_key():
+        if tdev.scan_key()[0]:
             print("{0:b}".format(tdev.keys_maxbits))
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []): break
 

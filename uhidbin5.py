@@ -14,6 +14,7 @@ class Bin5Uhid():
         self.device=device
         self.codetable=CodeTable()
         self.codetable.readconf()
+        self.inkey=None
 
     def scancode(self, rkey: str, mkey: str, mod: dict[str, int]) -> tuple[int, int]:
         modifiers={'RightGUI':(1<<7), 'RightAlt':(1<<6), 'RightShift':(1<<5), 'RightCtl':(1<<4),
@@ -46,12 +47,16 @@ class Bin5Uhid():
 
     async def get_tinput(self) -> None:
         while True:
-            while not self.tdev.scan_key(): pass
-            ik=self.codetable.code2char(self.tdev.keys_maxbits)
-            if not ik[0]: continue
-            uk=self.scancode(ik[0], ik[1], ik[2])
-            self.device.send_input((uk[1],0,uk[0],0,0,0,0,0))
+            while True :
+                pkey,cont=self.tdev.scan_key()
+                if pkey:break
+            if self.inkey==None:
+                ik=self.codetable.code2char(self.tdev.keys_maxbits)
+                if not ik[0]: continue
+                self.inkey=self.scancode(ik[0], ik[1], ik[2])
+            self.device.send_input((self.inkey[1],0,self.inkey[0],0,0,0,0,0))
             self.device.send_input((0,0,0,0,0,0,0,0))
+            if not cont: self.inkey=None
             break
         return
 
