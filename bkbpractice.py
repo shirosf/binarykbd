@@ -78,6 +78,12 @@ class CodeTable(object):
                     return (self.key2code(j), i)
         return (0, 0)
 
+    def modstate_print(self) -> None:
+        print(' '*80, end='\r')
+        for k,v in self.modifiers.items():
+            print("%s:%d " % (k,v), end='')
+        print("", end='\r', flush=True)
+
     def code2char(self, dcode: int) -> tuple[str, str, dict]:
         if dcode>=32: return ('', '', None)
         keydef=self.keytable[dcode]
@@ -92,6 +98,7 @@ class CodeTable(object):
                 for k,v in self.modifiers.items():
                     if v!=2: self.modifiers[k]=0 # clear all unlocked modifiers
                 self.lastmod=''
+                self.modstate_print()
                 return (ik, mk, rm)
             else:
                 # last modifier is locked
@@ -102,25 +109,33 @@ class CodeTable(object):
                 ts=time.time_ns()
                 if ts-self.modts < self.MODLOCK_TIMEOUT:
                     logger.debug("modifiere %s=2" % self.lastmod)
-                    self.modifiers[self.lastmod]=2 # only 2 sequencial mofiers make lock
+                    if self.modifiers[self.lastmod]!=2:
+                        self.modifiers[self.lastmod]=2 # only 2 sequencial mofiers make lock
+                        self.modstate_print()
                 else:
                     logger.debug("modifiere(no lock by timeout) %s=1" % self.lastmod)
                     self.modts=ts
-                    self.modifiers[self.lastmod]=1
+                    if self.modifiers[self.lastmod]!=1:
+                        self.modifiers[self.lastmod]=1
+                        self.modstate_print()
             else:
-                self.modifiers[self.lastmod]=0
-                logger.debug("modifiere %s=0" % self.lastmod)
-                self.lastmod=''
+                if self.modifiers[self.lastmod]!=0:
+                    self.modifiers[self.lastmod]=0
+                    logger.debug("modifiere %s=0" % self.lastmod)
+                    self.lastmod=''
+                    self.modstate_print()
         else:
             if self.modifiers[ik]==2:
                 logger.debug("modifiere %s=0" % ik)
                 self.modifiers[ik]=0
                 self.lastmod=''
+                self.modstate_print()
             else:
                 logger.debug("modifiere %s=1" % ik)
                 self.modts=time.time_ns()
                 self.modifiers[ik]=1
                 self.lastmod=ik
+                self.modstate_print()
         return ('','',None)
 
     def code2charWm(self, dcode: int) -> str:
