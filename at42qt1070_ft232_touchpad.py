@@ -20,13 +20,14 @@ import logging
 os.environ["BLINKA_FT232H"]="1"
 import board
 from adafruit_bus_device import i2c_device
+from keysw_ft232 import InputBase_FT232
 
 logging.basicConfig(level=logging.INFO)
 logger=logging.getLogger('at42qt1070_ft232_touchpad')
 logger.setLevel(logging.INFO)
 logging.getLogger('pyftdi.i2c').setLevel(logging.ERROR)
 
-class AT42QT1070_FT232:
+class AT42QT1070_FT232(InputBase_FT232):
     I2C_ADDRESS=0x1B
     AT42QT1070_CHIPID=0x2E
     ZERO_NONZERO_THRESHOLD=int(4E6) # 4msec
@@ -41,7 +42,7 @@ class AT42QT1070_FT232:
             logger.error("can't find AT42QT1070")
             return False
 
-        if not self.calibrate(): return False
+        if not self.__calibrate(): return False
         # remove low power mode, and set the shortest 8 msec interval
         self.i2cdev.write(bytes([54, 0]))
         self.i2cdev.write_then_readinto(bytes([54]), result)
@@ -57,16 +58,9 @@ class AT42QT1070_FT232:
 
         logger.info("found AT42QT1070, initialization okay")
         self.scan_ts=time.time_ns()
-        self.last_keys=0
-        self.zero_ts=0
-        self.nonzero_ts=0
-        self.nonzero_keys=0
-        self.keys_maxbitn=0
-        self.keys_maxbits=0
-        self.state_zero=True
         return True
 
-    def calibrate(self) -> bool:
+    def __calibrate(self) -> bool:
         result = bytearray(1)
         self.i2cdev.write(bytes([57, 1])) # start calibration
         for i in range(10):
@@ -87,7 +81,7 @@ class AT42QT1070_FT232:
         logger.debug("key status=0x%x" % result[0])
         return result[0]
 
-    def key_signal_ref(self, keyno: int) -> tuple[int, int]:
+    def __key_signal_ref(self, keyno: int) -> tuple[int, int]:
         result = bytearray(1)
         self.i2cdev.write_then_readinto(bytes([4+2*keyno]), result)
         msb=result[0]
@@ -101,56 +95,6 @@ class AT42QT1070_FT232:
         ref=(msb<<8)|lsb
         return (signal, ref)
 
-    def update_maxbits(self) -> bool:
-        n=0
-        for i in range(5):
-            if self.last_keys & (1<<i): n+=1
-        if n>self.keys_maxbitn:
-            self.keys_maxbitn=n
-            self.keys_maxbits=self.last_keys
-            return True
-        return False
-
-    def update_state_zero(self, dts: int) -> bool:
-        if self.last_keys==0:
-            self.zero_ts+=dts
-            self.nonzero_ts=0
-        else:
-            self.zero_ts=0
-            self.nonzero_ts+=dts
-        if not self.state_zero:
-           if self.zero_ts > (self.ZERO_NONZERO_THRESHOLD+self.ZERO_NONZERO_HYSTERISIS):
-               self.state_zero=True
-               return True
-        else:
-           if self.nonzero_ts > (self.ZERO_NONZERO_THRESHOLD+self.ZERO_NONZERO_HYSTERISIS):
-               self.state_zero=False
-               return True
-        return False
-
-    def scan_key(self) -> tuple[bool,bool]:
-        ts=time.time_ns()
-        # dts is around 16-18 msec
-        dts=ts-self.scan_ts
-        self.scan_ts=ts
-        keys=self.key_status()
-        if keys!=self.last_keys:
-            #print("{0:b}".format(keys))
-            self.last_keys=keys
-        uz=self.update_state_zero(dts)
-        if not self.state_zero:
-            self.update_maxbits()
-        if not uz and not self.state_zero:
-            # holding down state
-            rt=self.nonzero_ts // self.KEY_REPEAT_TIME
-            if rt>self.KEY_REPEAT_START:
-                if self.nonzero_ts-dts < rt*self.KEY_REPEAT_TIME:
-                    return (True,True)
-        if uz and self.state_zero:
-            # get a new key code
-            self.keys_maxbitn=0
-            return (True,False)
-        return (False,False)
 
 if __name__ == "__main__":
     tdev=AT42QT1070_FT232()

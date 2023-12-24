@@ -4,11 +4,14 @@ import asyncio
 import logging
 import uhid
 import at42qt1070_ft232_touchpad
+import keysw_ft232
 from bkbpractice import CodeTable
+import signal
 
 class Bin5Uhid():
     def __init__(self, device: uhid.UHIDDevice):
-        self.tdev=at42qt1070_ft232_touchpad.AT42QT1070_FT232()
+        #self.tdev=at42qt1070_ft232_touchpad.AT42QT1070_FT232()
+        self.tdev=keysw_ft232.KeySw_FT232()
         if not self.tdev.probe_device():
                 raise Exception("No device is attached")
         self.device=device
@@ -108,7 +111,13 @@ async def main():
     buhid=Bin5Uhid(device)
     asyncio.create_task(buhid.inject_input())
 
+def handler(signum, frame):
+    global loop
+    loop.stop()
+
 if __name__ == '__main__':
+    global loop
+    signal.signal(signal.SIGINT, handler)
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())  # create device
     loop.run_forever()  # run queued dispatch tasks
