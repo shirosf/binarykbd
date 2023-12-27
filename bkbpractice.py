@@ -9,8 +9,8 @@ import logging
 import random
 import select
 import termios
-from copy import deepcopy
 from at42qt1070_ft232_touchpad import AT42QT1070_FT232
+from keysw_ft232 import CodeTable
 
 FONTFILE="/usr/share/fonts/opentype/freefont/FreeSans.otf"
 
@@ -24,43 +24,14 @@ def check_keyin():
     if not pres: return False
     return True
 
-class CodeTable(object):
-    SPECIAL_KEYS = {'BS':'\b', 'SP':' ', 'VBAR':'|', 'TAB':'\t', 'ESC':'\x1B', 'RET':'\n',
-                    'UP':'\x1B[A', 'DOWN':'\x1B[B', 'RIGHT':'\x1B[C', 'LEFT':'\x1B[D'}
-    MODLOCK_TIMEOUT = 500000000
-    def readconf(self, conffile: str="config.org") -> int:
-        inf=open(conffile, "r")
-        started=False
-        self.keytable=[None]*32
-        while True:
-            keydef={}
-            line=inf.readline()
-            if line=='': break
-            if line[0]!='|':
-                started=False
-                continue
-            items=line.split('|')
-            if len(items)<11: continue
-            if not started:
-                if items[1].strip() == 'dcode':
-                    started=True
-                continue
-            try:
-                dcode=int(items[1].strip())
-                if dcode<1 or dcode>31: raise ValueError
-            except ValueError:
-                logger.error("'dcode' item msut be a number in 1 to 31")
-                return -1
-            if items[4].strip()=='':
-                logger.error("'key' item is not defined")
-                return -1
-            for i,j in enumerate(('key','M1','M2','M3','M4','M5')):
-                keydef[j]=items[4+i].strip()
-            self.keytable[dcode]=keydef
-        inf.close()
-        self.modifiers = {'M1':0,'M2':0,'M3':0,'M4':0,'M5':0}
-        self.lastmod = ''
-        self.modts = 0
+class PraCodeTable(CodeTable):
+    def code2charWm(self, dcode: int) -> str:
+        key=self.code2char(dcode)
+        if key[1]:
+            if key[1] in self.SPECIAL_KEYS:
+                return self.SPECIAL_KEYS[key[1]]
+            return key[1]
+        return key[0]
 
     def key2code(self, kchr:str) -> int:
         for i, keydef in enumerate(self.keytable):
@@ -77,75 +48,6 @@ class CodeTable(object):
                     if j=='key': return (0, i)
                     return (self.key2code(j), i)
         return (0, 0)
-
-    def modstate_print(self) -> None:
-        print(' '*80, end='\r')
-        for k,v in self.modifiers.items():
-            print("%s:%d " % (k,v), end='')
-        print("", end='\r', flush=True)
-
-    def code2char(self, dcode: int) -> tuple[str, str, dict]:
-        if dcode>=32: return ('', '', None)
-        keydef=self.keytable[dcode]
-        ik=keydef['key']
-        if ik not in self.modifiers:
-            rm=deepcopy(self.modifiers)
-            if not self.lastmod:
-                return (ik,'', rm) # regular key without modifier
-            mk=keydef[self.lastmod] # modified with the last modifier
-            if self.modifiers[self.lastmod]!=2:
-                # last modifier is not locked
-                for k,v in self.modifiers.items():
-                    if v!=2: self.modifiers[k]=0 # clear all unlocked modifiers
-                self.lastmod=''
-                self.modstate_print()
-                return (ik, mk, rm)
-            else:
-                # last modifier is locked
-                return (ik, mk, rm)
-        # got a modifier key
-        if ik==self.lastmod:
-            if self.modifiers[self.lastmod]==1:
-                ts=time.time_ns()
-                if ts-self.modts < self.MODLOCK_TIMEOUT:
-                    logger.debug("modifiere %s=2" % self.lastmod)
-                    if self.modifiers[self.lastmod]!=2:
-                        self.modifiers[self.lastmod]=2 # only 2 sequencial mofiers make lock
-                        self.modstate_print()
-                else:
-                    logger.debug("modifiere(no lock by timeout) %s=1" % self.lastmod)
-                    self.modts=ts
-                    if self.modifiers[self.lastmod]!=1:
-                        self.modifiers[self.lastmod]=1
-                        self.modstate_print()
-            else:
-                if self.modifiers[self.lastmod]!=0:
-                    self.modifiers[self.lastmod]=0
-                    logger.debug("modifiere %s=0" % self.lastmod)
-                    self.lastmod=''
-                    self.modstate_print()
-        else:
-            if self.modifiers[ik]==2:
-                logger.debug("modifiere %s=0" % ik)
-                self.modifiers[ik]=0
-                self.lastmod=''
-                self.modstate_print()
-            else:
-                logger.debug("modifiere %s=1" % ik)
-                self.modts=time.time_ns()
-                self.modifiers[ik]=1
-                self.lastmod=ik
-                self.modstate_print()
-        return ('','',None)
-
-    def code2charWm(self, dcode: int) -> str:
-        key=self.code2char(dcode)
-        if key[1]:
-            if key[1] in self.SPECIAL_KEYS:
-                return self.SPECIAL_KEYS[key[1]]
-            return key[1]
-        return key[0]
-
 
 class FingersImage(object):
     def __init__(self):
@@ -188,7 +90,7 @@ class FingersImage(object):
         self.showfile=None
 
 class PracticeOneKey(object):
-    def __init__(self, codetable: CodeTable, fimage: FingersImage=None, pstr: str=""):
+    def __init__(self, codetable: PraCodeTable, fimage: FingersImage=None, pstr: str=""):
         super().__init__()
         self.codetable=codetable
         self.fimage=fimage
@@ -315,7 +217,7 @@ class ConsoleKeyIn():
 if __name__ == "__main__":
     random.seed()
     options=parse_args()
-    codetable=CodeTable()
+    codetable=PraCodeTable()
     codetable.readconf()
     ckeyin=ConsoleKeyIn(True)
     if options.mode==0:

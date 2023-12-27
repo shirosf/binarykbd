@@ -1,10 +1,115 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import logging
 import time
 import os
 os.environ["BLINKA_FT232H"]="1"
 import board
 import digitalio
+from copy import deepcopy
+
+logger=logging.getLogger('keysw_ft232')
+logger.setLevel(logging.INFO)
+
+class CodeTable(object):
+    SPECIAL_KEYS = {'BS':'\b', 'SP':' ', 'VBAR':'|', 'TAB':'\t', 'ESC':'\x1B', 'RET':'\n',
+                    'UP':'\x1B[A', 'DOWN':'\x1B[B', 'RIGHT':'\x1B[C', 'LEFT':'\x1B[D'}
+    MODLOCK_TIMEOUT = 500000000
+    def readconf(self, conffile: str="config.org") -> int:
+        inf=open(conffile, "r")
+        started=False
+        self.keytable=[None]*32
+        while True:
+            keydef={}
+            line=inf.readline()
+            if line=='': break
+            if line[0]!='|':
+                started=False
+                continue
+            items=line.split('|')
+            if len(items)<11: continue
+            for i in items[3:]: print("%s\t" % i.strip(), end='')
+            print()
+            if not started:
+                if items[1].strip() == 'dcode':
+                    started=True
+                continue
+            try:
+                dcode=int(items[1].strip())
+                if dcode<1 or dcode>31: raise ValueError
+            except ValueError:
+                logger.error("'dcode' item msut be a number in 1 to 31")
+                return -1
+            if items[4].strip()=='':
+                logger.error("'key' item is not defined")
+                return -1
+            for i,j in enumerate(('key','M1','M2','M3','M4','M5')):
+                keydef[j]=items[4+i].strip()
+            self.keytable[dcode]=keydef
+        inf.close()
+        self.modifiers = {'M1':0,'M2':0,'M3':0,'M4':0,'M5':0}
+        self.lastmod = ''
+        self.modts = 0
+
+    def modstate_print(self) -> None:
+        print(' '*80, end='\r')
+        for k,v in reversed(self.modifiers.items()):
+            print("%s:%d " % (k,v), end='')
+        print("", end='\r', flush=True)
+
+    def code2char(self, dcode: int) -> tuple[str, str, dict]:
+        if dcode>=32: return ('', '', None)
+        keydef=self.keytable[dcode]
+        ik=keydef['key']
+        if ik not in self.modifiers:
+            rm=deepcopy(self.modifiers)
+            if not self.lastmod:
+                return (ik,'', rm) # regular key without modifier
+            mk=keydef[self.lastmod] # modified with the last modifier
+            if self.modifiers[self.lastmod]!=2:
+                # last modifier is not locked
+                for k,v in self.modifiers.items():
+                    if v!=2: self.modifiers[k]=0 # clear all unlocked modifiers
+                self.lastmod=''
+                self.modstate_print()
+                return (ik, mk, rm)
+            else:
+                # last modifier is locked
+                return (ik, mk, rm)
+        # got a modifier key
+        if ik==self.lastmod:
+            if self.modifiers[self.lastmod]==1:
+                ts=time.time_ns()
+                if ts-self.modts < self.MODLOCK_TIMEOUT:
+                    logger.debug("modifiere %s=2" % self.lastmod)
+                    if self.modifiers[self.lastmod]!=2:
+                        self.modifiers[self.lastmod]=2 # only 2 sequencial mofiers make lock
+                        self.modstate_print()
+                else:
+                    logger.debug("modifiere(no lock by timeout) %s=1" % self.lastmod)
+                    self.modts=ts
+                    if self.modifiers[self.lastmod]!=1:
+                        self.modifiers[self.lastmod]=1
+                        self.modstate_print()
+            else:
+                if self.modifiers[self.lastmod]!=0:
+                    self.modifiers[self.lastmod]=0
+                    logger.debug("modifiere %s=0" % self.lastmod)
+                    self.lastmod=''
+                    self.modstate_print()
+        else:
+            if self.modifiers[ik]==2:
+                logger.debug("modifiere %s=0" % ik)
+                self.modifiers[ik]=0
+                self.lastmod=''
+                self.modstate_print()
+            else:
+                logger.debug("modifiere %s=1" % ik)
+                self.modts=time.time_ns()
+                self.modifiers[ik]=1
+                self.lastmod=ik
+                self.modstate_print()
+        return ('','',None)
 
 class InputBase_FT232(object):
     SCAN_KEY_MIN_INTERVAL=int(12E6) # 12msec
@@ -76,7 +181,7 @@ class KeySw_FT232(InputBase_FT232):
     ZERO_NONZERO_THRESHOLD=int(4E6) # 4msec
     ZERO_NONZERO_HYSTERISIS=int(2E6) # 2msec
     KEY_REPEAT_TIME=int(50E6) # 50msec
-    KEY_REPEAT_START=int(1E9)//KEY_REPEAT_TIME # 1sec
+    KEY_REPEAT_START=int(500E6)//KEY_REPEAT_TIME # 0.5sec
     def probe_device(self) -> bool:
         self.keys=[None]*5
         self.keys[0]=digitalio.DigitalInOut(board.C0)

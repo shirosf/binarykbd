@@ -3,15 +3,24 @@
 import asyncio
 import logging
 import uhid
-import at42qt1070_ft232_touchpad
-import keysw_ft232
-from bkbpractice import CodeTable
+from at42qt1070_ft232_touchpad import AT42QT1070_FT232
+from keysw_ft232 import CodeTable, KeySw_FT232
 import signal
+import sys
+
+logger=logging.getLogger('uhidbin5')
+logger.setLevel(logging.INFO)
 
 class Bin5Uhid():
-    def __init__(self, device: uhid.UHIDDevice):
-        #self.tdev=at42qt1070_ft232_touchpad.AT42QT1070_FT232()
-        self.tdev=keysw_ft232.KeySw_FT232()
+    def __init__(self, device: uhid.UHIDDevice, mode: str='keysw'):
+        if mode=='touchpad':
+            self.tdev=AT42QT1070_FT232()
+            logger.info("touchpad mode")
+        elif mode=='keysw':
+            self.tdev=KeySw_FT232()
+            logger.info("keysw mode")
+        else:
+            return
         if not self.tdev.probe_device():
                 raise Exception("No device is attached")
         self.device=device
@@ -30,7 +39,7 @@ class Bin5Uhid():
                 '>':(0x37,1), '[':(0x2f,0), ']':(0x30,0), '_':(0x2d,1), '"':(0x34,1),
                 "'":(0x34,0), 'HOME':(0x4a,0), 'END':(0x4d,0), '+':(0x2e,1), ';':(0x33,0),
                 '=':(0x2e,0), '*':(0x25,1), '\\':(0x31,0), ':':(0x33,1), '$':(0x21,1),
-                '/':(0x38,0), '?':(0x38,1), '!':(0x1e,1)}
+                '/':(0x38,0), '?':(0x38,1), '!':(0x1e,1), '#':(0x20,1)}
 
         mbits=0
         mbits|=modifiers['LeftShift'] if mod['M1'] else 0
@@ -38,7 +47,7 @@ class Bin5Uhid():
         mbits|=modifiers['LeftCtr'] if mod['M5'] else 0
         if not mkey:
             return (ord(rkey)-ord('a')+0x04, mbits);
-        if len(mkey)==1 and mkey>='A' and mkey<'Z':
+        if len(mkey)==1 and mkey>='A' and mkey<='Z':
             return (ord(rkey)-ord('a')+0x04, mbits);
         if len(mkey)==1 and mkey>='1' and mkey<='9':
             return (ord(mkey)-ord('1')+0x1e, mbits);
@@ -108,7 +117,8 @@ async def main():
     )
     logging.getLogger(device.__class__.__name__).setLevel(logging.ERROR)
     await device.wait_for_start_asyncio()
-    buhid=Bin5Uhid(device)
+    mode = sys.argv[1] if len(sys.argv)>1 else 'keysw'
+    buhid=Bin5Uhid(device, mode)
     asyncio.create_task(buhid.inject_input())
 
 def handler(signum, frame):
