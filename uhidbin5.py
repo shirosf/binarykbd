@@ -40,7 +40,7 @@ class Bin5Uhid():
                 "'":(0x34,0), 'HOME':(0x4a,0), 'END':(0x4d,0), '+':(0x2e,1), ';':(0x33,0),
                 '=':(0x2e,0), '*':(0x25,1), '\\':(0x31,0), ':':(0x33,1), '$':(0x21,1),
                 '/':(0x38,0), '?':(0x38,1), '!':(0x1e,1), '#':(0x20,1), 'F1':(0x3a,0),
-                'F2':(0x3b,0),'F3':(0x3c,0), 'PUP':(0x4b,0), 'PDOWN':(0x4e,0)}
+                'F2':(0x3b,0),'F3':(0x3c,0), 'PUP':(0x4b,0), 'PDOWN':(0x4e,0), 'DEL':(0x4c,0)}
 
         mbits=0
         mbits|=modifiers['LeftShift'] if mod['M1'] else 0
@@ -52,6 +52,8 @@ class Bin5Uhid():
             return (ord(rkey)-ord('a')+0x04, mbits);
         if len(mkey)==1 and mkey>='1' and mkey<='9':
             return (ord(mkey)-ord('1')+0x1e, mbits);
+        if len(mkey)==1 and mkey>='a' and mkey<='z':
+            return (ord(mkey)-ord('a')+0x04, mbits);
         if scodes[mkey][1]:
             mbits|=modifiers['LeftShift']
         else:

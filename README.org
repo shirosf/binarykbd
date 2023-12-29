@@ -11,7 +11,19 @@ Developing 5-bit binary input keyboard, which works only by a left hand for text
 + If no, the project ends.  If yes, continue to create a model for my daily use.
 
 ** pre-release history
-*** 2023-12
+*** 2023-12-29
+After all, the touch pad doesn't work well.
+It is difficult to avoid inadvertent touching.
+I made a new keyboard with 'Cherry MX SILENT RED'.
+"uhidbin5.py" works with the key switch as default.
+"uhidbin5.py touchpad" works with the touchpad.
+[[./photos/keysw_cherry_red.jpg]]
+
+Added a function to select a configuration from 2 configuration tables.
+For emacs users, typing on a software other than emacs is always problematic.
+E.g. 'C-f' is assigned as 'RIGHT' in the 2nd set.
+
+*** 2023-12-4
 It was difficult to input some codes which needs to lift the third finger.
 So, made the third finger pad a little down as the next,
 [[./photos/fingers_on_board2.jpg]]
