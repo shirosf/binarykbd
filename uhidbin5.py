@@ -25,7 +25,7 @@ class Bin5Uhid():
                 raise Exception("No device is attached")
         self.device=device
         self.codetable=CodeTable()
-        self.codetable.readconf()
+        self.ready=(self.codetable.readconf()==0)
         self.inkey=None
 
     def scancode(self, rkey: str, mkey: str, mod: dict[str, int]) -> tuple[int, int]:
@@ -39,7 +39,8 @@ class Bin5Uhid():
                 '>':(0x37,1), '[':(0x2f,0), ']':(0x30,0), '_':(0x2d,1), '"':(0x34,1),
                 "'":(0x34,0), 'HOME':(0x4a,0), 'END':(0x4d,0), '+':(0x2e,1), ';':(0x33,0),
                 '=':(0x2e,0), '*':(0x25,1), '\\':(0x31,0), ':':(0x33,1), '$':(0x21,1),
-                '/':(0x38,0), '?':(0x38,1), '!':(0x1e,1), '#':(0x20,1)}
+                '/':(0x38,0), '?':(0x38,1), '!':(0x1e,1), '#':(0x20,1), 'F1':(0x3a,0),
+                'F2':(0x3b,0),'F3':(0x3c,0), 'PUP':(0x4b,0), 'PDOWN':(0x4e,0)}
 
         mbits=0
         mbits|=modifiers['LeftShift'] if mod['M1'] else 0
@@ -119,6 +120,7 @@ async def main():
     await device.wait_for_start_asyncio()
     mode = sys.argv[1] if len(sys.argv)>1 else 'keysw'
     buhid=Bin5Uhid(device, mode)
+    if not buhid.ready: sys.exit(1)
     asyncio.create_task(buhid.inject_input())
 
 def handler(signum, frame):

@@ -25,6 +25,8 @@ def check_keyin():
     return True
 
 class PraCodeTable(CodeTable):
+    SPECIAL_KEYS = {'BS':'\b', 'SP':' ', 'VBAR':'|', 'TAB':'\t', 'ESC':'\x1B', 'RET':'\n',
+                    'UP':'\x1B[A', 'DOWN':'\x1B[B', 'RIGHT':'\x1B[C', 'LEFT':'\x1B[D'}
     def code2charWm(self, dcode: int) -> str:
         key=self.code2char(dcode)
         if key[1]:
@@ -34,14 +36,14 @@ class PraCodeTable(CodeTable):
         return key[0]
 
     def key2code(self, kchr:str) -> int:
-        for i, keydef in enumerate(self.keytable):
+        for i, keydef in enumerate(self.keytables[self.csel]):
             if keydef==None: continue
             if keydef['key'] == kchr:
                 return i
         return 0
 
     def chr2code(self, kchr:str) -> tuple[int, int]:
-        for i, keydef in enumerate(self.keytable):
+        for i, keydef in enumerate(self.keytables[self.csel]):
             if keydef==None: continue
             for j in ('key','M1','M2','M3','M4','M5'):
                 if keydef[j] == kchr:

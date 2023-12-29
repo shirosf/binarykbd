@@ -12,30 +12,30 @@ logger=logging.getLogger('keysw_ft232')
 logger.setLevel(logging.INFO)
 
 class CodeTable(object):
-    SPECIAL_KEYS = {'BS':'\b', 'SP':' ', 'VBAR':'|', 'TAB':'\t', 'ESC':'\x1B', 'RET':'\n',
-                    'UP':'\x1B[A', 'DOWN':'\x1B[B', 'RIGHT':'\x1B[C', 'LEFT':'\x1B[D'}
     MODLOCK_TIMEOUT = 500000000
     def readconf(self, conffile: str="config.org") -> int:
         inf=open(conffile, "r")
         started=False
-        self.keytable=[None]*32
+        self.keytables={'A':[None]*32, 'B':[None]*32}
         while True:
             keydef={}
             line=inf.readline()
             if line=='': break
+            if not started:
+                if line.find('code table')>0:
+                    self.csel=line.strip()[-1]
+                    if self.csel=='A' or self.csel=='B':
+                        started=True
+                continue
             if line[0]!='|':
                 started=False
                 continue
             items=line.split('|')
             if len(items)<11: continue
-            for i in items[3:]: print("%s\t" % i.strip(), end='')
-            print()
-            if not started:
-                if items[1].strip() == 'dcode':
-                    started=True
-                continue
             try:
-                dcode=int(items[1].strip())
+                item1=items[1].strip()
+                if item1=='dcode': continue
+                dcode=int(item1)
                 if dcode<1 or dcode>31: raise ValueError
             except ValueError:
                 logger.error("'dcode' item msut be a number in 1 to 31")
@@ -45,33 +45,60 @@ class CodeTable(object):
                 return -1
             for i,j in enumerate(('key','M1','M2','M3','M4','M5')):
                 keydef[j]=items[4+i].strip()
-            self.keytable[dcode]=keydef
+            self.keytables[self.csel][dcode]=keydef
         inf.close()
         self.modifiers = {'M1':0,'M2':0,'M3':0,'M4':0,'M5':0}
         self.lastmod = ''
         self.modts = 0
+        self.csel='A'
+        self.printconf()
+        return 0
+
+    def printconf(self):
+        for i,keydef in enumerate(self.keytables[self.csel]):
+            if i==0:
+                print("bcode\t", end='')
+            else:
+                print("%s\t" % bin(i+32)[3:], end='')
+            for n in ('key','M1','M2','M3','M4','M5'):
+                if i==0:
+                    print("%s\t" % n, end='')
+                else:
+                    print("%s\t" % keydef[n], end='')
+            print()
 
     def modstate_print(self) -> None:
         print(' '*80, end='\r')
+        print("[%s] " % self.csel, end='')
         for k,v in reversed(self.modifiers.items()):
             print("%s:%d " % (k,v), end='')
         print("", end='\r', flush=True)
 
+    def switch_config(self) -> None:
+        if self.csel=='B':
+            self.csel='A'
+        else:
+            if self.keytables[self.csel][1]:
+                self.csel='B'
+        self.printconf()
+
     def code2char(self, dcode: int) -> tuple[str, str, dict]:
         if dcode>=32: return ('', '', None)
-        keydef=self.keytable[dcode]
+        keydef=self.keytables[self.csel][dcode]
         ik=keydef['key']
         if ik not in self.modifiers:
             rm=deepcopy(self.modifiers)
             if not self.lastmod:
                 return (ik,'', rm) # regular key without modifier
             mk=keydef[self.lastmod] # modified with the last modifier
+            if mk=='SWTB': ik=''
             if self.modifiers[self.lastmod]!=2:
                 # last modifier is not locked
                 for k,v in self.modifiers.items():
                     if v!=2: self.modifiers[k]=0 # clear all unlocked modifiers
                 self.lastmod=''
                 self.modstate_print()
+                if mk=='SWTB': self.switch_config()
                 return (ik, mk, rm)
             else:
                 # last modifier is locked
@@ -89,8 +116,13 @@ class CodeTable(object):
                     logger.debug("modifiere(no lock by timeout) %s=1" % self.lastmod)
                     self.modts=ts
                     if self.modifiers[self.lastmod]!=1:
+                        # different modifier, set a new modifier
                         self.modifiers[self.lastmod]=1
-                        self.modstate_print()
+                    else:
+                        # the same modifier, reset the modifier
+                        self.modifiers[self.lastmod]=0
+                        self.lastmod=''
+                    self.modstate_print()
             else:
                 if self.modifiers[self.lastmod]!=0:
                     self.modifiers[self.lastmod]=0
