@@ -144,76 +144,46 @@ class CodeTable(object):
         return ('','',None)
 
 class InputBase_FT232(object):
-    SCAN_KEY_MIN_INTERVAL=int(12E6) # 12msec
+    KEY_VALID_MIN=int(50E6) # 50msec
+    KEY_INVALID_MIN=int(50E6) # 50msec
+    SCAN_KEY_MIN_INTERVAL=int(10E6) # 10msec
     def __init__(self):
         self.scan_ts=0
         self.last_keys=0
-        self.zero_ts=0
-        self.nonzero_ts=0
-        self.keys_maxbitn=0
-        self.keys_maxbits=0
-        self.state_zero=True
+        self.stable_ts=0
+        self.stable_keys=0
         super().__init__()
 
-    def __update_maxbits(self) -> bool:
-        n=0
-        for i in range(5):
-            if self.last_keys & (1<<i): n+=1
-        if n>self.keys_maxbitn:
-            self.keys_maxbitn=n
-            self.keys_maxbits=self.last_keys
-            return True
-        return False
-
-    def __update_state_zero(self, dts: int) -> bool:
-        if self.last_keys==0:
-            self.zero_ts+=dts
-            self.nonzero_ts=0
-        else:
-            self.zero_ts=0
-            self.nonzero_ts+=dts
-        if not self.state_zero:
-           if self.zero_ts > (self.ZERO_NONZERO_THRESHOLD+self.ZERO_NONZERO_HYSTERISIS):
-               self.state_zero=True
-               return True
-        else:
-           if self.nonzero_ts > (self.ZERO_NONZERO_THRESHOLD+self.ZERO_NONZERO_HYSTERISIS):
-               self.state_zero=False
-               return True
-        return False
-
-    def scan_key(self) -> tuple[bool,bool]:
+    # return (key_status, change_status)
+    def scan_key(self) -> tuple[int,bool]:
         ts=time.time_ns()
-        # dts is around 16-18 msec
         dts=ts-self.scan_ts
+        change=False
+        # for at42qt1070, dts is around 16-18 msec, and no sleep happens
+        # for keysw, dts is less than 1 msed, and sleep happens
         if dts<self.SCAN_KEY_MIN_INTERVAL:
                 time.sleep((self.SCAN_KEY_MIN_INTERVAL-dts)/1E9)
+                ts=time.time_ns()
+                dts=ts-self.scan_ts
         self.scan_ts=ts
         keys=self.key_status()
         if keys!=self.last_keys:
             #print("{0:b}".format(keys))
             self.last_keys=keys
-        uz=self.__update_state_zero(dts)
-        if not self.state_zero:
-            self.__update_maxbits()
-        if not uz and not self.state_zero:
-            # holding down state
-            rt=self.nonzero_ts // self.KEY_REPEAT_TIME
-            if rt>self.KEY_REPEAT_START:
-                if self.nonzero_ts-dts < rt*self.KEY_REPEAT_TIME:
-                    return (True,True)
-        if uz and self.state_zero:
-            # get a new key code
-            self.keys_maxbitn=0
-            return (True,False)
-        return (False,False)
-
+            self.stable_ts=0
+        else:
+            self.stable_ts+=dts
+        if self.last_keys and self.stable_ts>=self.KEY_VALID_MIN:
+            if self.stable_keys!=self.last_keys:
+                self.stable_keys=self.last_keys
+                change=True
+        elif self.last_keys==0 and self.stable_ts>=self.KEY_INVALID_MIN:
+            if self.stable_keys!=self.last_keys:
+                self.stable_keys=self.last_keys
+                change=True
+        return (self.stable_keys, change)
 
 class KeySw_FT232(InputBase_FT232):
-    ZERO_NONZERO_THRESHOLD=int(4E6) # 4msec
-    ZERO_NONZERO_HYSTERISIS=int(2E6) # 2msec
-    KEY_REPEAT_TIME=int(50E6) # 50msec
-    KEY_REPEAT_START=int(500E6)//KEY_REPEAT_TIME # 0.5sec
     def probe_device(self) -> bool:
         self.keys=[None]*5
         self.keys[0]=digitalio.DigitalInOut(board.C0)

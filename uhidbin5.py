@@ -60,18 +60,16 @@ class Bin5Uhid():
 
     async def get_tinput(self) -> None:
         while True:
-            while True :
-                pkey,cont=self.tdev.scan_key()
-                if pkey:break
-            if self.inkey==None:
-                ik=self.codetable.code2char(self.tdev.keys_maxbits)
-                if not ik[0]: continue
-                self.inkey=self.scancode(ik[0], ik[1], ik[2])
+            pkey,change=self.tdev.scan_key()
+            if not change: continue
+            if pkey==0:
+                self.device.send_input((0,0,0,0,0,0,0,0))
+                return
+            ik=self.codetable.code2char(pkey)
+            if not ik[0]: continue
+            self.inkey=self.scancode(ik[0], ik[1], ik[2])
             self.device.send_input((self.inkey[1],0,self.inkey[0],0,0,0,0,0))
-            self.device.send_input((0,0,0,0,0,0,0,0))
-            if not cont: self.inkey=None
-            break
-        return
+            return
 
     async def inject_input(self) -> None:
         while True:

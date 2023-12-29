@@ -28,12 +28,10 @@ logger.setLevel(logging.INFO)
 logging.getLogger('pyftdi.i2c').setLevel(logging.ERROR)
 
 class AT42QT1070_FT232(InputBase_FT232):
+    KEY_VALID_MIN=int(80E6) # 80msec
+    KEY_INVALID_MIN=int(80E6) # 80msec
     I2C_ADDRESS=0x1B
     AT42QT1070_CHIPID=0x2E
-    ZERO_NONZERO_THRESHOLD=int(4E6) # 4msec
-    ZERO_NONZERO_HYSTERISIS=int(2E6) # 2msec
-    KEY_REPEAT_TIME=int(50E6) # 50msec
-    KEY_REPEAT_START=int(1E9)//KEY_REPEAT_TIME # 1sec
     def probe_device(self) -> bool:
         self.i2cdev = i2c_device.I2CDevice(board.I2C(), self.I2C_ADDRESS, probe=False)
         result = bytearray(1)
@@ -102,8 +100,9 @@ if __name__ == "__main__":
     keys=0
     nkeys=0
     while True:
-        if tdev.scan_key()[0]:
-            print("{0:b}".format(tdev.keys_maxbits))
+        pkey,change=tdev.scan_key()
+        if change:
+            print("{0:b}".format(pkey))
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []): break
 
     sys.exit(0)

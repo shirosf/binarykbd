@@ -10,7 +10,7 @@ import random
 import select
 import termios
 from at42qt1070_ft232_touchpad import AT42QT1070_FT232
-from keysw_ft232 import CodeTable
+from keysw_ft232 import CodeTable, KeySw_FT232
 
 FONTFILE="/usr/share/fonts/opentype/freefont/FreeSans.otf"
 
@@ -92,12 +92,16 @@ class FingersImage(object):
         self.showfile=None
 
 class PracticeOneKey(object):
-    def __init__(self, codetable: PraCodeTable, fimage: FingersImage=None, pstr: str=""):
+    def __init__(self, ktype:str, codetable: PraCodeTable,
+                 fimage: FingersImage=None, pstr: str=""):
         super().__init__()
         self.codetable=codetable
         self.fimage=fimage
         self.setpstr(pstr)
-        self.tdev=AT42QT1070_FT232()
+        if ktype=='touchpad':
+            self.tdev=AT42QT1070_FT232()
+        else:
+            self.tdev=KeySw_FT232()
         if not self.tdev.probe_device():
             self.tdev=None
 
@@ -131,8 +135,10 @@ class PracticeOneKey(object):
             self.fimage.createimg(0, k)
             if self.tdev:
                 while True:
-                    while not self.tdev.scan_key()[0]: pass
-                    ik=self.codetable.code2charWm(self.tdev.keys_maxbits)
+                    pkey,change=self.tdev.scan_key()
+                    if not change: continue
+                    if pkey==0: continue
+                    ik=self.codetable.code2charWm(pkey)
                     if check_keyin(): return
                     if ik!='': break
                 if ik==k: continue
@@ -164,8 +170,10 @@ class PracticeOneKey(object):
             print(word)
             wc=0
             while wc<wordlen:
-                while not self.tdev.scan_key()[0]: pass
-                ik=self.codetable.code2charWm(self.tdev.keys_maxbits)
+                while True:
+                    pkey,change=self.tdev.scan_key()
+                    if change: break
+                ik=self.codetable.code2charWm(pkey)
                 if ik:
                     if ik!=word[wc]:
                         print(("%s{}%s" % (ccode['red'], ccode['end'])) .format(ik), end='')
@@ -196,6 +204,8 @@ def parse_args():
                             help="times of repeating practice")
     opt_parser.add_argument("-m", "--mode", nargs='?', default=0, type=int,
                             help="practice mode, 0:graphics(default), 1:text")
+    opt_parser.add_argument("-k", "--ktype", nargs='?', default="keysw",
+                            help="keytype 'keysw' or 'touchpad'")
     return opt_parser.parse_args()
 
 class ConsoleKeyIn():
@@ -226,11 +236,11 @@ if __name__ == "__main__":
         fimage=FingersImage()
         fimage.createimg(0, "")
         fimage.showimg()
-        pkey=PracticeOneKey(codetable, fimage, pstr=options.string)
+        pkey=PracticeOneKey(options.ktype, codetable, fimage, pstr=options.string)
         pkey.play(options.times, gap=options.gap, interval=options.interval)
         fimage.close()
     else:
-        pkey=PracticeOneKey(codetable, pstr=options.string)
+        pkey=PracticeOneKey(options.ktype, codetable, pstr=options.string)
         pkey.tplay()
 
     ckeyin.close()
