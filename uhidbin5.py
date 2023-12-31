@@ -62,15 +62,21 @@ class Bin5Uhid():
 
     async def get_tinput(self) -> None:
         while True:
-            pkey,change=self.tdev.scan_key()
+            pkey,change,repeat=self.tdev.scan_key()
             if not change: continue
             if pkey==0:
-                self.device.send_input((0,0,0,0,0,0,0,0))
+                if repeat:
+                    # get out from repeat status, send ZERO
+                    self.device.send_input((0,0,0,0,0,0,0,0))
                 return
             ik=self.codetable.code2char(pkey)
             if not ik[0]: continue
             self.inkey=self.scancode(ik[0], ik[1], ik[2])
+            # new key pushed status, send the code
             self.device.send_input((self.inkey[1],0,self.inkey[0],0,0,0,0,0))
+            if repeat: return
+            # non-repeat key event, pushed status is end, send ZERO
+            self.device.send_input((0,0,0,0,0,0,0,0))
             return
 
     async def inject_input(self) -> None:

@@ -135,7 +135,7 @@ class PracticeOneKey(object):
             self.fimage.createimg(0, k)
             if self.tdev:
                 while True:
-                    pkey,change=self.tdev.scan_key()
+                    pkey,change,repeat=self.tdev.scan_key()
                     if not change: continue
                     if pkey==0: continue
                     ik=self.codetable.code2charWm(pkey)
@@ -171,7 +171,8 @@ class PracticeOneKey(object):
             wc=0
             while wc<wordlen:
                 while True:
-                    pkey,change=self.tdev.scan_key()
+                    pkey,change,repeat=self.tdev.scan_key()
+                    if pkey==0: continue
                     if change: break
                 ik=self.codetable.code2charWm(pkey)
                 if ik:

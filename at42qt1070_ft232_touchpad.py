@@ -100,7 +100,7 @@ if __name__ == "__main__":
     keys=0
     nkeys=0
     while True:
-        pkey,change=tdev.scan_key()
+        pkey,change,repeat=tdev.scan_key()
         if change:
             print("{0:b}".format(pkey))
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []): break

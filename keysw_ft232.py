@@ -68,7 +68,7 @@ class CodeTable(object):
             print()
 
     def modstate_print(self) -> None:
-        print(' '*80, end='\r')
+        print(' '*56, end='\r')
         print("[%s] " % self.csel, end='')
         for k,v in reversed(self.modifiers.items()):
             print("%s:%d " % (k,v), end='')
@@ -144,21 +144,25 @@ class CodeTable(object):
         return ('','',None)
 
 class InputBase_FT232(object):
-    KEY_VALID_MIN=int(50E6) # 50msec
-    KEY_INVALID_MIN=int(50E6) # 50msec
+    KEY_VALID_MIN=int(20E6) # 20msec
+    KEY_INVALID_MIN=int(20E6) # 20msec
+    KEY_REPEAT_START=int(400E6) # 300msec
     SCAN_KEY_MIN_INTERVAL=int(10E6) # 10msec
     def __init__(self):
         self.scan_ts=0
         self.last_keys=0
         self.stable_ts=0
         self.stable_keys=0
+        self.maxbitn=0
+        self.repeat=False
         super().__init__()
 
-    # return (key_status, change_status)
-    def scan_key(self) -> tuple[int,bool]:
+    # return (key_status, change_status, repeta_status)
+    # change_status becomes True when (NOT PUSHED -> PUSHED) OR (PUSHED -> NOT PUSHED)
+    # repeat_status becomes True when (PUSHED time >= KEY_REPEAT_START)
+    def scan_key(self) -> tuple[int,bool,bool]:
         ts=time.time_ns()
         dts=ts-self.scan_ts
-        change=False
         # for at42qt1070, dts is around 16-18 msec, and no sleep happens
         # for keysw, dts is less than 1 msed, and sleep happens
         if dts<self.SCAN_KEY_MIN_INTERVAL:
@@ -168,20 +172,33 @@ class InputBase_FT232(object):
         self.scan_ts=ts
         keys=self.key_status()
         if keys!=self.last_keys:
-            #print("{0:b}".format(keys))
+            #print(bin(keys))
             self.last_keys=keys
             self.stable_ts=0
         else:
             self.stable_ts+=dts
         if self.last_keys and self.stable_ts>=self.KEY_VALID_MIN:
             if self.stable_keys!=self.last_keys:
-                self.stable_keys=self.last_keys
-                change=True
+                mn=self.last_keys.bit_count()
+                if self.maxbitn<mn:
+                    self.maxbitn=mn
+                    self.stable_keys=self.last_keys
+            if self.stable_ts>=self.KEY_REPEAT_START:
+                if self.stable_ts-dts<self.KEY_REPEAT_START:
+                    self.repeat=True
+                    return (self.stable_keys, True, self.repeat) # repeat event start
+                else:
+                    return (self.stable_keys, False, self.repeat) # repeat event continue
         elif self.last_keys==0 and self.stable_ts>=self.KEY_INVALID_MIN:
-            if self.stable_keys!=self.last_keys:
-                self.stable_keys=self.last_keys
-                change=True
-        return (self.stable_keys, change)
+            if self.stable_keys!=0:
+                stbkeys=self.stable_keys
+                self.stable_keys=0
+                self.maxbitn=0
+                if self.repeat:
+                    self.repeat=False
+                    return (0, True, True) # repeat event end
+                return (stbkeys, True, False) # non-repeat event
+        return (self.stable_keys, False, self.repeat) # transition
 
 class KeySw_FT232(InputBase_FT232):
     def probe_device(self) -> bool:
