@@ -49,7 +49,18 @@ class Bin5Uhid():
         if not mkey:
             return (ord(rkey)-ord('a')+0x04, mbits);
         if len(mkey)==1 and mkey>='A' and mkey<='Z':
+            if mod['M5']:
+                # when M5 table defines upper case letter, swich CTRL -> ALT
+                mbits&=~modifiers['LeftCtr']
+                mbits|=modifiers['LeftAlt']
+                return (ord(mkey)-ord('A')+0x04, mbits);
+            if mod['M4']:
+                # when M4 table defines upper case letter, swich ALT -> CTRL
+                mbits&=~modifiers['LeftAlt']
+                mbits|=modifiers['LeftCtr']
+                return (ord(mkey)-ord('A')+0x04, mbits);
             return (ord(rkey)-ord('a')+0x04, mbits);
+
         if len(mkey)==1 and mkey>='1' and mkey<='9':
             return (ord(mkey)-ord('1')+0x1e, mbits);
         if len(mkey)==1 and mkey>='a' and mkey<='z':
