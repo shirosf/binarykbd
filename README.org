@@ -37,7 +37,11 @@ $ ./bkbpractice.py -s abcde
 OR
 $ ./bkbpractice.py -s a..e
 
-** pre-release history
+** License
+Unless otherwise explicitly stated,
+all files in this project are released under GNU General Public License Version 2.
+
+** development history
 *** 2023-12-29
 After all, the touch pad doesn't work well.
 It is difficult to avoid inadvertent touching.
