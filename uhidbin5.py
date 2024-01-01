@@ -1,5 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+#
+# Copyright (C) 2024 Shiro Ninomiya
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with ${PNAME}.  If not, see
+# <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>.
+#
+
 import asyncio
 import logging
 import uhid
@@ -22,7 +40,7 @@ class Bin5Uhid():
         else:
             return
         if not self.tdev.probe_device():
-                raise Exception("No device is attached")
+            raise Exception("No device is attached")
         self.device=device
         self.codetable=CodeTable()
         self.ready=(self.codetable.readconf()==0)
@@ -67,8 +85,6 @@ class Bin5Uhid():
             return (ord(mkey)-ord('a')+0x04, mbits);
         if scodes[mkey][1]:
             mbits|=modifiers['LeftShift']
-        else:
-            mbits&=~modifiers['LeftShift']
         return (scodes[mkey][0], mbits)
 
     async def get_tinput(self) -> None:

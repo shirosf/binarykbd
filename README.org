@@ -10,6 +10,33 @@ Developing 5-bit binary input keyboard, which works only by a left hand for text
 + check if I can reach practically usable speed to input text
 + If no, the project ends.  If yes, continue to create a model for my daily use.
 
+** linux uhid keyboard
+$ cd THIS_PROGRAM_DIRECTORY
+$ ./uhidbin5.py
+
+It prints the key code table, and then the 5-bit binary keyboard works as a
+regular keyboard.
+When a modifier key is hit, the modifier key status is printed at the bottom line.
+
+** configuration table
+The keycode configuration is in 'config.org' file.
+There are two sets of configurations:'A' and 'B'.
+'SWTB' switches between the two sets.
+To change the configurations, edit this file.
+
+** practice program
+$ ./bkbpractice.py
+This uses 'xviewer' as an external png file viewer.
+A left hand graphic appear with a character, you hit the 5-bit binary keyboard to
+input the indicated character.  If you hit the right code, it goes the next character.
+If it is a wrong answer, it shows the right position of fingers on the graphic.
+
+To practice limited characters, use '-s' option.
+E.G. to practice five letters of 'abcde',
+$ ./bkbpractice.py -s abcde
+OR
+$ ./bkbpractice.py -s a..e
+
 ** pre-release history
 *** 2023-12-29
 After all, the touch pad doesn't work well.
