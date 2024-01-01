@@ -44,6 +44,9 @@ It is difficult to avoid inadvertent touching.
 I made a new keyboard with 'Cherry MX SILENT RED'.
 "uhidbin5.py" works with the key switch as default.
 "uhidbin5.py touchpad" works with the touchpad.
+#+ATTR_LATEX: :width 200px
+#+ATTR_HTML: :width 200px
+#+CAPTION: mechanical key swtich board
 [[./photos/keysw_cherry_red.jpg]]
 
 Added a function to select a configuration from 2 configuration tables.
@@ -53,6 +56,9 @@ E.g. 'C-f' is assigned as 'RIGHT' in the 2nd set.
 *** 2023-12-4
 It was difficult to input some codes which needs to lift the third finger.
 So, made the third finger pad a little down as the next,
+#+ATTR_LATEX: :width 200px
+#+ATTR_HTML: :width 200px
+#+CAPTION: surface down for the third finger
 [[./photos/fingers_on_board2.jpg]]
 
 *** 2023-11
@@ -69,20 +75,36 @@ Develop a prototype model
 Use adafruit FT232H(i2c) board + AT42QT1070(touch sensor) board
 
 AT42QT1070 board needs a little modification to use i2c mode.
-#+CAPTION: surface side of the board
-#+ATTR_HTML: :width 300px
+#+ATTR_LATEX: :width 200px
+#+ATTR_HTML: :width 200px
+#+CAPTION: surface side of FT232H + AT42QT1070
 [[./photos/ft232h_at42qt1070.jpg]]
-#+CAPTION: back side of the board
-#+ATTR_HTML: :width 300px
+#+ATTR_LATEX: :width 200px
+#+ATTR_HTML: :width 200px
+#+CAPTION: back side of FT232H + AT42QT1070
 [[./photos/ft232h_at42qt1070_wiring.jpg]]
 
 At first create the touch pad as the next pictures,
+#+ATTR_LATEX: :width 200px
+#+ATTR_HTML: :width 200px
+#+CAPTION: surface side of the touchpad(tied cable)
 [[./photos/touchkey1_surface.jpg]]
+#+ATTR_LATEX: :width 200px
+#+ATTR_HTML: :width 200px
+#+CAPTION: back side of the touchpad(tied cable)
 [[./photos/touchkey1_back.jpg]]
 
 It suffered a lot with cross talk noise.
 So, modified as the next,
+#+ATTR_LATEX: :width 200px
+#+ATTR_HTML: :width 200px
+#+CAPTION: surface side of the touchpad(separated cable)
 [[./photos/touchkey2_back.jpg]]
 
 Started my training,
+#+ATTR_LATEX: :width 200px
+#+ATTR_HTML: :width 200px
+#+CAPTION: surface side of the touchpad(tied cable)
 [[./photos/fingers_on_board1.jpg]]
+
+#+OPTIONS: \n:t ^:nil
