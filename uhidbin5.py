@@ -49,21 +49,66 @@ class Bin5Uhid():
     def scancode(self, rkey: str, mkey: str, mod: dict[str, int]) -> tuple[int, int]:
         modifiers={'RightGUI':(1<<7), 'RightAlt':(1<<6), 'RightShift':(1<<5), 'RightCtl':(1<<4),
                    'LeftGui':(1<<3), 'LeftAlt':(1<<2), 'LeftShift':(1<<1), 'LeftCtr':(1<<0)}
-        scodes={'0':(0x27,0), 'BS':(0x2a,0), 'RET':(0x28,0), 'TAB':(0x2b,0), 'SP':(0x2c,0),
-                'RIGHT':(0x4f,0), 'LEFT':(0x50,0), 'UP':(0x52,0), 'DOWN':(0x51,0), 'ESC':(0x29,0),
-                'VBAR':(0x32,1), '@':(0x1f,1), '~':(0x35,1), '&':(0x24,1), '`':(0x35,0),
-                '%':(0x22,1), '^':(0x23,1), ',':(0x36,0), '.':(0x37,0), '(':(0x26,1),
-                ')':(0x27,1), '-':(0x2d,0), '{':(0x2f,1), '}':(0x30,1), '<':(0x36,1),
-                '>':(0x37,1), '[':(0x2f,0), ']':(0x30,0), '_':(0x2d,1), '"':(0x34,1),
-                "'":(0x34,0), 'HOME':(0x4a,0), 'END':(0x4d,0), '+':(0x2e,1), ';':(0x33,0),
-                '=':(0x2e,0), '*':(0x25,1), '\\':(0x31,0), ':':(0x33,1), '$':(0x21,1),
-                '/':(0x38,0), '?':(0x38,1), '!':(0x1e,1), '#':(0x20,1), 'F1':(0x3a,0),
-                'F2':(0x3b,0),'F3':(0x3c,0), 'PUP':(0x4b,0), 'PDOWN':(0x4e,0), 'DEL':(0x4c,0)}
+        scodes={
+            '0':(0x27,0),
+            'RET':(0x28,0),
+            'ESC':(0x29,0),
+            'BS':(0x2a,0),
+            'TAB':(0x2b,0),
+            'SP':(0x2c,0),
+            '-':(0x2d,0),
+            '=':(0x2e,0),
+            '[':(0x2f,0),
+            ']':(0x30,0),
+            '\\':(0x31,0),
+            ';':(0x33,0),
+            "'":(0x34,0),
+            '`':(0x35,0),
+            ',':(0x36,0),
+            '.':(0x37,0),
+            '/':(0x38,0),
+            'F1':(0x3a,0),
+            'F2':(0x3b,0),
+            'F3':(0x3c,0),
+            'HOME':(0x4a,0),
+            'PUP':(0x4b,0),
+            'DEL':(0x4c,0),
+            'CSDEL':(0x4c,modifiers['LeftShift']|modifiers['LeftCtr']),
+            'END':(0x4d,0),
+            'PDOWN':(0x4e,0),
+            'RIGHT':(0x4f,0),
+            'LEFT':(0x50,0),
+            'DOWN':(0x51,0),
+            'UP':(0x52,0),
+            '!':(0x1e,modifiers['LeftShift']),
+            '@':(0x1f,modifiers['LeftShift']),
+            '#':(0x20,modifiers['LeftShift']),
+            '$':(0x21,modifiers['LeftShift']),
+            '%':(0x22,modifiers['LeftShift']),
+            '^':(0x23,modifiers['LeftShift']),
+            '*':(0x25,modifiers['LeftShift']),
+            '&':(0x24,modifiers['LeftShift']),
+            '(':(0x26,modifiers['LeftShift']),
+            ')':(0x27,modifiers['LeftShift']),
+            '_':(0x2d,modifiers['LeftShift']),
+            '+':(0x2e,modifiers['LeftShift']),
+            '{':(0x2f,modifiers['LeftShift']),
+            '}':(0x30,modifiers['LeftShift']),
+            'VBAR':(0x32,modifiers['LeftShift']),
+            ':':(0x33,modifiers['LeftShift']),
+            '"':(0x34,modifiers['LeftShift']),
+            '~':(0x35,modifiers['LeftShift']),
+            '<':(0x36,modifiers['LeftShift']),
+            '>':(0x37,modifiers['LeftShift']),
+            '?':(0x38,modifiers['LeftShift']),
+        }
 
         mbits=0
         mbits|=modifiers['LeftShift'] if mod['M1'] else 0
-        mbits|=modifiers['LeftAlt'] if mod['M4'] else 0
-        mbits|=modifiers['LeftCtr'] if mod['M5'] else 0
+        if mod['M4'] and len(mkey)<2:
+            mbits|=modifiers['LeftAlt']
+        if mod['M5'] and len(mkey)<2:
+            mbits|=modifiers['LeftCtr']
         if not mkey:
             return (ord(rkey)-ord('a')+0x04, mbits);
         if len(mkey)==1 and mkey>='A' and mkey<='Z':
@@ -83,8 +128,7 @@ class Bin5Uhid():
             return (ord(mkey)-ord('1')+0x1e, mbits);
         if len(mkey)==1 and mkey>='a' and mkey<='z':
             return (ord(mkey)-ord('a')+0x04, mbits);
-        if scodes[mkey][1]:
-            mbits|=modifiers['LeftShift']
+        mbits|=scodes[mkey][1]
         return (scodes[mkey][0], mbits)
 
     async def get_tinput(self) -> None:
