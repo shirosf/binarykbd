@@ -42,6 +42,18 @@ Unless otherwise explicitly stated,
 all files in this project are released under GNU General Public License Version 2.
 
 ** development history
+*** 2024-1-7
+'Cherry MX SILENT RED' is a little too hard for pushing down multiple keys.
+I've created another key board with 'Kailh Choc Switch Pink'.
+#+ATTR_LATEX: :width 200px
+#+ATTR_HTML: :width 200px
+#+CAPTION: mechanical key swtich(Kailh Choc pink) board
+[[./photos/keysw_KailhChoc_pink.jpg]]
+
+Now, I can type with the keyboard, but it is a way too too slow.
+It is 3 to 4 times slower than using regular keyboard.
+I'll keep my practice, and see how much I can improve the speed.
+
 *** 2023-12-29
 After all, the touch pad doesn't work well.
 It is difficult to avoid inadvertent touching.
@@ -50,7 +62,7 @@ I made a new keyboard with 'Cherry MX SILENT RED'.
 "uhidbin5.py touchpad" works with the touchpad.
 #+ATTR_LATEX: :width 200px
 #+ATTR_HTML: :width 200px
-#+CAPTION: mechanical key swtich board
+#+CAPTION: mechanical key swtich(Cherry MX rem) board
 [[./photos/keysw_cherry_red.jpg]]
 
 Added a function to select a configuration from 2 configuration tables.
