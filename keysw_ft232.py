@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with ${PNAME}.  If not, see
+# along with this program.  If not, see
 # <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>.
 #
 import logging
@@ -160,6 +160,10 @@ class CodeTable(object):
                 self.modstate_print()
         return ('','',None)
 
+    def modfier_status(self, mkey:str) -> int:
+        if mkey not in self.modifiers: return 0
+        return self.modifiers[mkey]
+
 class InputBase_FT232(object):
     KEY_VALID_MIN=int(20E6) # 20msec
     KEY_INVALID_MIN=int(20E6) # 20msec
@@ -181,7 +185,7 @@ class InputBase_FT232(object):
         ts=time.time_ns()
         dts=ts-self.scan_ts
         # for at42qt1070, dts is around 16-18 msec, and no sleep happens
-        # for keysw, dts is less than 1 msed, and sleep happens
+        # for keysw, dts is less than 1 msec, and sleep happens
         if dts<self.SCAN_KEY_MIN_INTERVAL:
                 time.sleep((self.SCAN_KEY_MIN_INTERVAL-dts)/1E9)
                 ts=time.time_ns()

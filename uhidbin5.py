@@ -14,7 +14,7 @@
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with ${PNAME}.  If not, see
+# along with this program.  If not, see
 # <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>.
 #
 
@@ -45,10 +45,11 @@ class Bin5Uhid():
         self.codetable=CodeTable()
         self.ready=(self.codetable.readconf()==0)
         self.inkey=None
+        self.modifiers={'RightGUI':(1<<7), 'RightAlt':(1<<6), 'RightShift':(1<<5),
+                        'RightCtl':(1<<4), 'LeftGui':(1<<3), 'LeftAlt':(1<<2),
+                        'LeftShift':(1<<1), 'LeftCtr':(1<<0)}
 
     def scancode(self, rkey: str, mkey: str, mod: dict[str, int]) -> tuple[int, int]:
-        modifiers={'RightGUI':(1<<7), 'RightAlt':(1<<6), 'RightShift':(1<<5), 'RightCtl':(1<<4),
-                   'LeftGui':(1<<3), 'LeftAlt':(1<<2), 'LeftShift':(1<<1), 'LeftCtr':(1<<0)}
         scodes={
             '0':(0x27,0,0),
             'RET':(0x28,0,0),
@@ -70,60 +71,60 @@ class Bin5Uhid():
             'F1':(0x3a,0,0),
             'F2':(0x3b,0,0),
             'F3':(0x3c,0,0),
-            'HOME':(0x4a,0,modifiers['LeftCtr']),
-            'PUP':(0x4b,0,modifiers['LeftAlt']),
-            'DEL':(0x4c,0,modifiers['LeftCtr']),
-            'CSDEL':(0x4c,modifiers['LeftShift']|modifiers['LeftCtr'],0),
-            'END':(0x4d,0,modifiers['LeftCtr']),
-            'PDOWN':(0x4e,0,modifiers['LeftCtr']),
-            'RIGHT':(0x4f,0,modifiers['LeftCtr']),
-            'CRIGHT':(0x4f,modifiers['LeftCtr'],modifiers['LeftAlt']),
-            'LEFT':(0x50,0,modifiers['LeftCtr']),
-            'CLEFT':(0x50,modifiers['LeftCtr'],modifiers['LeftAlt']),
-            'DOWN':(0x51,0,modifiers['LeftCtr']),
-            'UP':(0x52,0,modifiers['LeftCtr']),
-            '!':(0x1e,modifiers['LeftShift'],0),
-            '@':(0x1f,modifiers['LeftShift'],0),
-            '#':(0x20,modifiers['LeftShift'],0),
-            '$':(0x21,modifiers['LeftShift'],0),
-            '%':(0x22,modifiers['LeftShift'],0),
-            '^':(0x23,modifiers['LeftShift'],0),
-            '*':(0x25,modifiers['LeftShift'],0),
-            '&':(0x24,modifiers['LeftShift'],0),
-            '(':(0x26,modifiers['LeftShift'],0),
-            ')':(0x27,modifiers['LeftShift'],0),
-            '_':(0x2d,modifiers['LeftShift'],0),
-            '+':(0x2e,modifiers['LeftShift'],0),
-            '{':(0x2f,modifiers['LeftShift'],0),
-            '}':(0x30,modifiers['LeftShift'],0),
-            'VBAR':(0x32,modifiers['LeftShift'],0),
-            ':':(0x33,modifiers['LeftShift'],0),
-            '"':(0x34,modifiers['LeftShift'],0),
-            '~':(0x35,modifiers['LeftShift'],0),
-            '<':(0x36,modifiers['LeftShift'],0),
-            '>':(0x37,modifiers['LeftShift'],0),
-            '?':(0x38,modifiers['LeftShift'],0),
+            'HOME':(0x4a,0,self.modifiers['LeftCtr']),
+            'PUP':(0x4b,0,self.modifiers['LeftAlt']),
+            'DEL':(0x4c,0,self.modifiers['LeftCtr']),
+            'CSDEL':(0x4c,self.modifiers['LeftShift']|self.modifiers['LeftCtr'],0),
+            'END':(0x4d,0,self.modifiers['LeftCtr']),
+            'PDOWN':(0x4e,0,self.modifiers['LeftCtr']),
+            'RIGHT':(0x4f,0,self.modifiers['LeftCtr']),
+            'CRIGHT':(0x4f,self.modifiers['LeftCtr'],self.modifiers['LeftAlt']),
+            'LEFT':(0x50,0,self.modifiers['LeftCtr']),
+            'CLEFT':(0x50,self.modifiers['LeftCtr'],self.modifiers['LeftAlt']),
+            'DOWN':(0x51,0,self.modifiers['LeftCtr']),
+            'UP':(0x52,0,self.modifiers['LeftCtr']),
+            '!':(0x1e,self.modifiers['LeftShift'],0),
+            '@':(0x1f,self.modifiers['LeftShift'],0),
+            '#':(0x20,self.modifiers['LeftShift'],0),
+            '$':(0x21,self.modifiers['LeftShift'],0),
+            '%':(0x22,self.modifiers['LeftShift'],0),
+            '^':(0x23,self.modifiers['LeftShift'],0),
+            '*':(0x25,self.modifiers['LeftShift'],0),
+            '&':(0x24,self.modifiers['LeftShift'],0),
+            '(':(0x26,self.modifiers['LeftShift'],0),
+            ')':(0x27,self.modifiers['LeftShift'],0),
+            '_':(0x2d,self.modifiers['LeftShift'],0),
+            '+':(0x2e,self.modifiers['LeftShift'],0),
+            '{':(0x2f,self.modifiers['LeftShift'],0),
+            '}':(0x30,self.modifiers['LeftShift'],0),
+            'VBAR':(0x32,self.modifiers['LeftShift'],0),
+            ':':(0x33,self.modifiers['LeftShift'],0),
+            '"':(0x34,self.modifiers['LeftShift'],0),
+            '~':(0x35,self.modifiers['LeftShift'],0),
+            '<':(0x36,self.modifiers['LeftShift'],0),
+            '>':(0x37,self.modifiers['LeftShift'],0),
+            '?':(0x38,self.modifiers['LeftShift'],0),
         }
 
         mbits=0
         if mod['M1']:
-            mbits|=modifiers['LeftShift']
+            mbits|=self.modifiers['LeftShift']
         if mod['M4']:
-            mbits|=modifiers['LeftAlt']
+            mbits|=self.modifiers['LeftAlt']
         if mod['M5']:
-            mbits|=modifiers['LeftCtr']
+            mbits|=self.modifiers['LeftCtr']
         if not mkey:
             return (ord(rkey)-ord('a')+0x04, mbits);
         if len(mkey)==1 and mkey>='A' and mkey<='Z':
             if mod['M5']:
                 # when M5 table defines upper case letter, swich CTRL -> ALT
-                mbits&=~modifiers['LeftCtr']
-                mbits|=modifiers['LeftAlt']
+                mbits&=~self.modifiers['LeftCtr']
+                mbits|=self.modifiers['LeftAlt']
                 return (ord(mkey)-ord('A')+0x04, mbits);
             if mod['M4']:
                 # when M4 table defines upper case letter, swich ALT -> CTRL
-                mbits&=~modifiers['LeftAlt']
-                mbits|=modifiers['LeftCtr']
+                mbits&=~self.modifiers['LeftAlt']
+                mbits|=self.modifiers['LeftCtr']
                 return (ord(mkey)-ord('A')+0x04, mbits);
             return (ord(rkey)-ord('a')+0x04, mbits);
 
@@ -145,7 +146,20 @@ class Bin5Uhid():
                     self.device.send_input((0,0,0,0,0,0,0,0))
                 return
             ik=self.codetable.code2char(pkey)
-            if not ik[0]: continue
+            if not ik[0]:
+                if not repeat: continue
+                mbits=0
+                dv=0
+                if self.codetable.modfier_status('M1'):
+                    mbits|=self.modifiers['LeftShift']
+                    dv=0xe1
+                if self.codetable.modfier_status('M4'):
+                    mbits|=self.modifiers['LeftAlt']
+                    dv=0xe2
+                if self.codetable.modfier_status('M5'):
+                    mbits|=self.modifiers['LeftCtr']
+                    dv=0xe0
+                continue
             self.inkey=self.scancode(ik[0], ik[1], ik[2])
             # new key pushed status, send the code
             self.device.send_input((self.inkey[1],0,self.inkey[0],0,0,0,0,0))
