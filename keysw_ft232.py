@@ -30,6 +30,7 @@ logger.setLevel(logging.INFO)
 
 class CodeTable(object):
     MODLOCK_TIMEOUT = 500000000
+    RESET_MODIFIERS = {'M1':0,'M2':0,'M3':0,'M4':0,'M5':0}
     def readconf(self, conffile: str="config.org") -> int:
         inf=open(conffile, "r")
         started=False
@@ -64,7 +65,7 @@ class CodeTable(object):
                 keydef[j]=items[4+i].strip()
             self.keytables[self.csel][dcode]=keydef
         inf.close()
-        self.modifiers = {'M1':0,'M2':0,'M3':0,'M4':0,'M5':0}
+        self.modifiers = deepcopy(self.RESET_MODIFIERS)
         self.lastmod = ''
         self.modts = 0
         self.csel='A'
@@ -100,7 +101,13 @@ class CodeTable(object):
         self.printconf()
 
     def code2char(self, dcode: int) -> tuple[str, str, dict]:
-        if dcode>=32: return ('', '', None)
+        spbs=dcode&0x60
+        dcode=dcode&0x1f
+        if spbs:
+            if spbs&0x20:
+                return ('s', 'BS', deepcopy(self.RESET_MODIFIERS))
+            else:
+                return ('t', 'SP', deepcopy(self.RESET_MODIFIERS))
         keydef=self.keytables[self.csel][dcode]
         ik=keydef['key']
         if ik not in self.modifiers:
@@ -223,16 +230,15 @@ class InputBase_FT232(object):
 
 class KeySw_FT232(InputBase_FT232):
     def probe_device(self) -> bool:
-        self.keys=[None]*5
+        self.keys=[None]*7
         self.keys[0]=digitalio.DigitalInOut(board.C0)
         self.keys[1]=digitalio.DigitalInOut(board.C1)
         self.keys[2]=digitalio.DigitalInOut(board.C2)
         self.keys[3]=digitalio.DigitalInOut(board.C3)
         self.keys[4]=digitalio.DigitalInOut(board.C4)
-        self.groundkey=digitalio.DigitalInOut(board.C5)
-        self.groundkey.direction=digitalio.Direction.OUTPUT
-        self.groundkey.value=False
-        for i in range(5):
+        self.keys[5]=digitalio.DigitalInOut(board.C5)
+        self.keys[6]=digitalio.DigitalInOut(board.C6)
+        for i in range(7):
             self.keys[i].direction=digitalio.Direction.INPUT
         self.scan_ts=time.time_ns()
         return True
@@ -240,5 +246,7 @@ class KeySw_FT232(InputBase_FT232):
     def key_status(self) -> int:
         result=0
         for i in range(5):
-            result|=(1<<i) if not self.keys[i].value else 0
+            result|=(1<<(4-i)) if not self.keys[i].value else 0
+        result |= (1<<5) if not self.keys[5].value else 0
+        result |= (1<<6) if not self.keys[6].value else 0
         return result
