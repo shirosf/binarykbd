@@ -42,6 +42,17 @@ Unless otherwise explicitly stated,
 all files in this project are released under GNU General Public License Version 2.
 
 ** development history
+*** 2024-4-13
+Moving a thumb left and right doesn't disturb to input the codes,
+so add 2 more keys for 'space' and 'back space' as the picture.
+#+ATTR_LATEX: :width 200px
+#+ATTR_HTML: :width 200px
+#+CAPTION: 2 more keys left and right position of the thumb key.
+[[./photos/keysw_2morekeys.jpg]]
+
+With these 2 keys, typing becomes a little easier, but my typing speed is
+still in 15wpm to 20wmp range.
+
 *** 2024-1-7
 'Cherry MX SILENT RED' is a little too hard for pushing down multiple keys.
 I've created another key board with 'Kailh Choc Switch Pink'.
