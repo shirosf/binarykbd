@@ -1,4 +1,6 @@
 * Binary5 keyboard
+I moved to [[https://github.com/shirosf/twostkbd][a new project]], and stopped working for this project.
+
 ** objective
 Developing 5-bit binary input keyboard, which works only by a left hand for text input.
 
